@@ -32,5 +32,5 @@ setup(name=name,
       author_email=author_email,
       url=url,
       classifiers = classifiers,
-      packages = ['SOAPpy', 'SOAPpy.wstools', 'TerraImage','pyTerra']
+      packages = ['pyTerra.SOAPpy', 'pyTerra.SOAPpy.wstools', 'pyTerra.TerraImage','pyTerra.pyTerra']
       )
