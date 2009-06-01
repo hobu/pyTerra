@@ -8,11 +8,11 @@ and pyXML 0.7 or greater.
 pyTerra: Python Support for the Microsoft TerraServer
 
 *******************************************************************************
-Version: 0.4
+Version: 0.5
 
 *******************************************************************************
 License:
-See the Python 2.3 License (http://www.python.org/2.1/license.html)
+See the Python 2.5 License (http://www.python.org/2.1/license.html)
 
 *******************************************************************************
 Description:
@@ -94,7 +94,7 @@ import socket
 
 __author__ = "Howard Butler  hobu@hobu.net"
 __copyright__ ='(c) 2003 Howard Butler'
-__version__= "0.4"
+__version__= "0.7"
 
 url = "http://terraservice.net/terraservice.asmx"
 ns = "http://terraserver-usa.com/terraserver/"
