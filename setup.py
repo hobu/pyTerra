@@ -1,21 +1,36 @@
-from distutils.core import setup
-from distutils.core import Extension
-import os, sys
-f = os.path.abspath('.')
-sys.path.append(f)
+try:
+    from setuptools import setup
+    from setuptools import Extension
+except ImportError:
+    from distutils.core import setup, Extension
+    
 
 name="pyTerra"
-version="0.6"
+version="0.7"
 description="Terraserver Module for Python"
 author="Howard Butler"
-author_email="hobu@iastate.edu"
-url="http://hobu.biz/software/pyTerra/"
-   
+author_email="hobu.inc@gmail.com"
+url="http://bitbucket.org/hobu/pyterra/"
+
+
+classifiers = [
+        'Development Status :: 4 - Beta',
+        'Intended Audience :: Developers',
+        'Intended Audience :: Science/Research',
+        'License :: OSI Approved :: Python Software Foundation License',
+        'Operating System :: OS Independent',
+        'Programming Language :: Python',
+        'Topic :: Scientific/Engineering :: GIS',
+        
+]
+
+
 setup(name=name,
       version=version,
       description=description,
       author=author,
       author_email=author_email,
       url=url,
-      packages = ['pyTS', 'pyTS.SOAPpy', 'pyTS.SOAPpy.wstools', 'pyTS.TerraImage','pyTS.pyTerra']
+      classifiers = classifiers,
+      packages = ['SOAPpy', 'SOAPpy.wstools', 'TerraImage','pyTerra']
       )
