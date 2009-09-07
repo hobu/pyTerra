@@ -39,13 +39,13 @@
 #
 ################################################################################
 """
+from __future__ import nested_scopes
 
+#
 ident = '$Id: Server.py,v 1.21 2005/02/15 16:32:22 warnes Exp $'
 from version import __version__
 
-from __future__ import nested_scopes
-
-#import xml.sax
+import xml.sax
 import re
 import socket
 import sys

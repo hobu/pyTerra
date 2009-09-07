@@ -32,11 +32,11 @@
 #
 ################################################################################
 """
+from __future__ import nested_scopes
 
 ident = '$Id: Types.py,v 1.19 2005/02/22 04:29:43 warnes Exp $'
 from version import __version__
 
-from __future__ import nested_scopes
 
 import UserList
 import base64
