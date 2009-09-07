@@ -6,7 +6,7 @@ except ImportError:
     
 
 name="pyTerra"
-version="0.7"
+version="0.8"
 description="Terraserver Module for Python"
 author="Howard Butler"
 author_email="hobu.inc@gmail.com"
