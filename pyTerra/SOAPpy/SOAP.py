@@ -3,7 +3,8 @@
 Delete when 1.0.0 is released!
 """
 
-ident = '$Id: SOAP.py,v 1.1 2003/10/01 02:00:27 hobu Exp $'
+ident = '$Id: SOAP.py,v 1.38 2004/01/31 04:20:06 warnes Exp $'
+from version import __version__
 
 from Client      import *
 from Config      import *

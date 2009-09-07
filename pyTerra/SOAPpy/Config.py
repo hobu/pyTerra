@@ -33,12 +33,11 @@
 ################################################################################
 """
 
-ident = '$Id: Config.py,v 1.1 2003/10/01 02:00:27 hobu Exp $'
+ident = '$Id: Config.py,v 1.9 2004/01/31 04:20:05 warnes Exp $'
+from version import __version__
 
-import copy
-import socket
-try: from M2Crypto import SSL
-except: pass
+import copy, socket
+from types import *
 
 from NS import NS 
 
@@ -47,7 +46,7 @@ from NS import NS
 ################################################################################
 
 class SOAPConfig:
-    __readonly = ('SSLserver', 'SSLclient')
+    __readonly = ('SSLserver', 'SSLclient', 'GSIserver', 'GSIclient')
 
     def __init__(self, config = None, **kw):
         d = self.__dict__
@@ -63,9 +62,10 @@ class SOAPConfig:
                 if k[0] != '_':
                     d[k] = v
         else:
-            # Setting debug also sets returnFaultInfo, dumpFaultInfo,
+            # Setting debug also sets returnFaultInfo, 
             # dumpHeadersIn, dumpHeadersOut, dumpSOAPIn, and dumpSOAPOut
             self.debug = 0
+            self.dumpFaultInfo = 1
             # Setting namespaceStyle sets typesNamespace, typesNamespaceURI,
             # schemaNamespace, and schemaNamespaceURI
             self.namespaceStyle = '1999'
@@ -74,16 +74,65 @@ class SOAPConfig:
             self.buildWithNamespacePrefix = 1
             self.returnAllAttrs = 0
 
+            # Strict checking of range for floats and doubles
+            self.strict_range = 0
+
+            # Default encoding for dictionary keys
+            self.dict_encoding = 'ascii'
 
             # New argument name handling mechanism.  See
             # README.MethodParameterNaming for details
             self.specialArgs = 1
 
-            try: SSL; d['SSLserver'] = 1
-            except: d['SSLserver'] = 0
+            # If unwrap_results=1 and there is only element in the struct,
+            # SOAPProxy will assume that this element is the result
+            # and return it rather than the struct containing it.
+            # Otherwise SOAPproxy will return the struct with all the
+            # elements as attributes.
+            self.unwrap_results = 1
 
-            try: socket.ssl; d['SSLclient'] = 1
-            except: d['SSLclient'] = 0
+            # Automatically convert SOAP complex types, and
+            # (recursively) public contents into the corresponding
+            # python types. (Private subobjects have names that start
+            # with '_'.)
+            #
+            # Conversions:
+            # - faultType    --> raise python exception
+            # - arrayType    --> array
+            # - compoundType --> dictionary
+            #
+            self.simplify_objects = 0
+
+            # Per-class authorization method.  If this is set, before
+            # calling a any class method, the specified authorization
+            # method will be called.  If it returns 1, the method call
+            # will proceed, otherwise the call will throw with an
+            # authorization error.
+            self.authMethod = None
+
+            # Globus Support if pyGlobus.io available
+            try:
+                from pyGlobus import io;
+                d['GSIserver'] = 1
+                d['GSIclient'] = 1
+            except:
+                d['GSIserver'] = 0
+                d['GSIclient'] = 0
+                
+
+            # Server SSL support if M2Crypto.SSL available
+            try:
+                from M2Crypto import SSL
+                d['SSLserver'] = 1
+            except:
+                d['SSLserver'] = 0
+
+            # Client SSL support if socket.ssl available
+            try:
+                from socket import ssl
+                d['SSLclient'] = 1
+            except:
+                d['SSLclient'] = 0
 
         for k, v in kw.items():
             if k[0] != '_':
@@ -96,7 +145,7 @@ class SOAPConfig:
         d = self.__dict__
 
         if name in ('typesNamespace', 'typesNamespaceURI',
-            'schemaNamespace', 'schemaNamespaceURI'):
+                    'schemaNamespace', 'schemaNamespaceURI'):
 
             if name[-3:] == 'URI':
                 base, uri = name[:-3], 1
@@ -141,12 +190,11 @@ class SOAPConfig:
         elif name == 'debug':
             d[name]                     = \
                 d['returnFaultInfo']    = \
-                d['dumpFaultInfo']      = \
                 d['dumpHeadersIn']      = \
                 d['dumpHeadersOut']     = \
                 d['dumpSOAPIn']         = \
                 d['dumpSOAPOut']        = value
-
+            
         else:
             d[name] = value
 

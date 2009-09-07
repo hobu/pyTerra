@@ -3,7 +3,7 @@
 #
 # SOAPpy - Cayce Ullman       (cayce@actzero.com)
 #          Brian Matthews     (blm@actzero.com)
-#          Gregory Warnes     (gregory_r_warnes@groton.pfizer.com)
+#          Gregory Warnes     (Gregory.R.Warnes@Pfizer.com)
 #          Christopher Blunck (blunck@gst.com)
 #
 ################################################################################
@@ -40,12 +40,16 @@
 ################################################################################
 """
 
+ident = '$Id: Client.py,v 1.27 2005/02/21 20:27:09 warnes Exp $'
+from version import __version__
+
 from __future__ import nested_scopes
 
 #import xml.sax
 import urllib
 from types import *
 import re
+import base64
 
 # SOAPpy modules
 from Errors      import *
@@ -53,11 +57,7 @@ from Config      import Config
 from Parser      import parseSOAPRPC
 from SOAPBuilder import buildSOAP
 from Utilities   import *
-
-ident = '$Id: Client.py,v 1.1 2003/10/01 02:00:27 hobu Exp $'
-
-from version import __version__
-
+from Types       import faultType, simplify
 
 ################################################################################
 # Client
@@ -91,8 +91,11 @@ class SOAPAddress:
         if not path:
             path = '/'
 
-        if proto not in ('http', 'https'):
+        if proto not in ('http', 'https', 'httpg'):
             raise IOError, "unsupported SOAP protocol"
+        if proto == 'httpg' and not config.GSIclient:
+            raise AttributeError, \
+                  "GSI client not supported by this Python installation"
         if proto == 'https' and not config.SSLclient:
             raise AttributeError, \
                 "SSL client not supported by this Python installation"
@@ -114,7 +117,7 @@ class HTTPTransport:
         SOAP message."""
 
         if type(original_namespace) == StringType:
-            pattern="xmlns:\w+=['\"](" + original_namespace + ")['\"]"
+            pattern="xmlns:\w+=['\"](" + original_namespace + "[^'\"]*)['\"]"
             match = re.search(pattern, data)
             if match:
                 return match.group(1)
@@ -124,7 +127,7 @@ class HTTPTransport:
             return original_namespace
     
     # Need a Timeout someday?
-    def call(self, addr, data, namespace, soapaction = '', encoding = None,
+    def call(self, addr, data, namespace, soapaction = None, encoding = None,
         http_proxy = None, config = Config):
 
         import httplib
@@ -139,8 +142,11 @@ class HTTPTransport:
         else:
             real_addr = addr.host
             real_path = addr.path
-            
-        if addr.proto == 'https':
+
+        if addr.proto == 'httpg':
+            from pyGlobus.io import GSIHTTP
+            r = GSIHTTP(real_addr, tcpAttr = config.tcpAttr)
+        elif addr.proto == 'https':
             r = httplib.HTTPS(real_addr)
         else:
             r = httplib.HTTP(real_addr)
@@ -160,7 +166,12 @@ class HTTPTransport:
         if addr.user != None:
             val = base64.encodestring(addr.user) 
             r.putheader('Authorization','Basic ' + val.replace('\012',''))
-        r.putheader("SOAPAction", '"%s"' % soapaction)
+
+        # This fixes sending either "" or "None"
+        if soapaction == None or len(soapaction) == 0:
+            r.putheader("SOAPAction", "")
+        else:
+            r.putheader("SOAPAction", '"%s"' % soapaction)
 
         if config.dumpHeadersOut:
             s = 'Outgoing HTTP headers'
@@ -189,6 +200,40 @@ class HTTPTransport:
         # read response line
         code, msg, headers = r.getreply()
 
+        if headers:
+            content_type = headers.get("content-type","text/xml")
+            content_length = headers.get("Content-length")
+        else:
+            content_type=None
+            content_length=None
+
+        # work around OC4J bug which does '<len>, <len>' for some reaason
+        if content_length:
+            comma=content_length.find(',')
+            if comma>0:
+                content_length = content_length[:comma]
+
+        # attempt to extract integer message size
+        try:
+            message_len = int(content_length)
+        except:
+            message_len = -1
+            
+        if message_len < 0:
+            # Content-Length missing or invalid; just read the whole socket
+            # This won't work with HTTP/1.1 chunked encoding
+            data = r.getfile().read()
+            message_len = len(data)
+        else:
+            data = r.getfile().read(message_len)
+
+        if(config.debug):
+            print "code=",code
+            print "msg=", msg
+            print "headers=", headers
+            print "content-type=", content_type
+            print "data=", data
+                
         if config.dumpHeadersIn:
             s = 'Incoming HTTP headers'
             debugHeader(s)
@@ -199,7 +244,13 @@ class HTTPTransport:
                 print "HTTP/0.9 %d %s" % (code, msg)
             debugFooter(s)
 
-        data = r.getfile().read()
+        def startswith(string, val):
+            return string[0:len(val)] == val
+        
+        if code == 500 and not \
+               ( startswith(content_type, "text/xml") and message_len > 0 ):
+            raise HTTPError(code, msg)
+
         if config.dumpSOAPIn:
             s = 'Incoming SOAP'
             debugHeader(s)
@@ -211,13 +262,6 @@ class HTTPTransport:
         if code not in (200, 500):
             raise HTTPError(code, msg)
 
-        def startswith(string, val):
-            return string[0:len(val)] == val
-
-        content_type = headers.get("content-type","text/xml")
-        
-        if code == 500 and not startswith(content_type, "text/xml"):
-            raise HTTPError(code, msg)
 
         # get the new namespace
         if namespace is None:
@@ -232,14 +276,27 @@ class HTTPTransport:
 # SOAP Proxy
 ################################################################################
 class SOAPProxy:
-    def __init__(self, proxy, namespace = None, soapaction = '',
+    def __init__(self, proxy, namespace = None, soapaction = None,
                  header = None, methodattrs = None, transport = HTTPTransport,
-                 encoding = 'UTF-8', throw_faults = 1, unwrap_results = 1,
-                 http_proxy=None, config = Config,noroot = 0):
+                 encoding = 'UTF-8', throw_faults = 1, unwrap_results = None,
+                 http_proxy=None, config = Config, noroot = 0,
+                 simplify_objects=None):
 
         # Test the encoding, raising an exception if it's not known
         if encoding != None:
             ''.encode(encoding)
+
+        # get default values for unwrap_results and simplify_objects
+        # from config
+        if unwrap_results is None:
+            self.unwrap_results=config.unwrap_results
+        else:
+            self.unwrap_results=unwrap_results
+
+        if simplify_objects is None:
+            self.simplify_objects=config.simplify_objects
+        else:
+            self.simplify_objects=simplify_objects
 
         self.proxy          = SOAPAddress(proxy, config)
         self.namespace      = namespace
@@ -249,12 +306,17 @@ class SOAPProxy:
         self.transport      = transport()
         self.encoding       = encoding
         self.throw_faults   = throw_faults
-        self.unwrap_results = unwrap_results
         self.http_proxy     = http_proxy
         self.config         = config
         self.noroot         = noroot
-        
 
+        # GSI Additions
+        if hasattr(config, "channel_mode") and \
+               hasattr(config, "delegation_mode"):
+            self.channel_mode = config.channel_mode
+            self.delegation_mode = config.delegation_mode
+        #end GSI Additions
+        
     def invoke(self, method, args):
         return self.__call(method, args, {})
         
@@ -265,10 +327,14 @@ class SOAPProxy:
         ma = ma or self.methodattrs
 
         if sa: # Get soapaction
-            if type(sa) == TupleType: sa = sa[0]
+            if type(sa) == TupleType:
+                sa = sa[0]
         else:
-            sa = self.soapaction
-
+            if self.soapaction:
+                sa = self.soapaction
+            else:
+                sa = name
+                
         if hd: # Get header
             if type(hd) == TupleType:
                 hd = hd[0]
@@ -285,12 +351,46 @@ class SOAPProxy:
 
         m = buildSOAP(args = args, kw = kw, method = name, namespace = ns,
             header = hd, methodattrs = ma, encoding = self.encoding,
-            config = self.config,noroot = self.noroot)
+            config = self.config, noroot = self.noroot)
 
-        r, self.namespace = self.transport.call(self.proxy, m, ns, sa,
-                                                encoding = self.encoding,
-                                                http_proxy = self.http_proxy,
-                                                config = self.config)
+
+        call_retry = 0
+        try:
+
+            r, self.namespace = self.transport.call(self.proxy, m, ns, sa,
+                                                    encoding = self.encoding,
+                                                 http_proxy = self.http_proxy,
+                                                    config = self.config)
+
+        except Exception, ex:
+            #
+            # Call failed.
+            #
+            # See if we have a fault handling vector installed in our
+            # config. If we do, invoke it. If it returns a true value,
+            # retry the call. 
+            #
+            # In any circumstance other than the fault handler returning
+            # true, reraise the exception. This keeps the semantics of this
+            # code the same as without the faultHandler code.
+            #
+
+            if hasattr(self.config, "faultHandler"):
+                if callable(self.config.faultHandler):
+                    call_retry = self.config.faultHandler(self.proxy, ex)
+                    if not call_retry:
+                        raise
+                else:
+                    raise
+            else:
+                raise
+
+        if call_retry:
+            r, self.namespace = self.transport.call(self.proxy, m, ns, sa,
+                                                    encoding = self.encoding,
+                                                    http_proxy = self.http_proxy,
+                                                    config = self.config)
+            
 
         p, attrs = parseSOAPRPC(r, attrs = 1)
 
@@ -301,23 +401,32 @@ class SOAPProxy:
             throw_struct = 0
 
         if throw_struct:
-            print p
+            if Config.debug:
+                print p
             raise p
 
-        # Bubble a regular result up, if there is only element in the
-        # struct, assume that is the result and return it.
-        # Otherwise it will return the struct with all the elements
-        # as attributes.
+        # If unwrap_results=1 and there is only element in the struct,
+        # SOAPProxy will assume that this element is the result
+        # and return it rather than the struct containing it.
+        # Otherwise SOAPproxy will return the struct with all the
+        # elements as attributes.
         if self.unwrap_results:
             try:
                 count = 0
                 for i in p.__dict__.keys():
-                    if i[0] != "_":  # don't move the private stuff
+                    if i[0] != "_":  # don't count the private stuff
                         count += 1
                         t = getattr(p, i)
-                if count == 1: p = t # Only one piece of data, bubble it up
+                if count == 1: # Only one piece of data, bubble it up
+                    p = t 
             except:
                 pass
+
+        # Automatically simplfy SOAP complex types into the
+        # corresponding python types. (structType --> dict,
+        # arrayType --> array, etc.)
+        if self.simplify_objects:
+            p = simplify(p)
 
         if self.config.returnAllAttrs:
             return p, attrs

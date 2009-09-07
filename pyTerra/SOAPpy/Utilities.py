@@ -33,7 +33,8 @@
 ################################################################################
 """
 
-ident = '$Id: Utilities.py,v 1.1 2003/10/01 02:00:27 hobu Exp $'
+ident = '$Id: Utilities.py,v 1.4 2004/01/31 04:20:06 warnes Exp $'
+from version import __version__
 
 import exceptions
 import copy
@@ -44,7 +45,6 @@ from types import *
 
 # SOAPpy modules
 from Errors import *
-from Types import *
 
 ################################################################################
 # Utility infielders

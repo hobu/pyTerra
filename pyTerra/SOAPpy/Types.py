@@ -33,7 +33,10 @@
 ################################################################################
 """
 
-ident = '$Id: Types.py,v 1.1 2003/10/01 02:00:27 hobu Exp $'
+ident = '$Id: Types.py,v 1.19 2005/02/22 04:29:43 warnes Exp $'
+from version import __version__
+
+from __future__ import nested_scopes
 
 import UserList
 import base64
@@ -48,10 +51,18 @@ from types import *
 from Errors    import *
 from NS        import NS
 from Utilities import encodeHexString, cleanDate
+from Config    import Config
 
-################################################################################
+###############################################################################
+# Utility functions
+###############################################################################
+
+def isPrivate(name): return name[0]=='_'
+def isPublic(name):  return name[0]!='_'
+
+###############################################################################
 # Types and Wrappers
-################################################################################
+###############################################################################
 
 class anyType:
     _validURIs = (NS.XSD, NS.XSD2, NS.XSD3, NS.ENC)
@@ -63,7 +74,9 @@ class anyType:
         if type(name) in (ListType, TupleType):
             self._ns, self._name = name
         else:
-            self._ns, self._name = self._validURIs[0], name
+            self._ns = self._validURIs[0]
+            self._name = name
+            
         self._typed = typed
         self._attrs = {}
 
@@ -76,7 +89,7 @@ class anyType:
             self._setAttrs(attrs)
 
     def __str__(self):
-        if self._name:
+        if hasattr(self,'_name') and self._name:
             return "<%s %s at %d>" % (self.__class__, self._name, id(self))
         return "<%s at %d>" % (self.__class__, id(self))
 
@@ -125,7 +138,11 @@ class anyType:
     def _setAttr(self, attr, value):
         attr = self._fixAttr(attr)
 
-        self._attrs[attr] = unicode(value)
+        if type(value) is StringType:
+            value = unicode(value)
+
+        self._attrs[attr] = value
+            
 
     def _setAttrs(self, attrs):
         if type(attrs) in (ListType, TupleType):
@@ -160,7 +177,7 @@ class anyType:
         return self.__class__.__name__[:-4]
 
     def _validNamespaceURI(self, URI, strict):
-        if not self._typed:
+        if not hasattr(self, '_typed') or not self._typed:
             return None
         if URI in self._validURIs:
             return URI
@@ -178,7 +195,7 @@ class stringType(anyType):
             raise ValueError, "must supply initial %s value" % self._type
 
         if type(data) not in (StringType, UnicodeType):
-            raise AttributeError, "invalid %s type" % self._type
+            raise AttributeError, "invalid %s type:" % self._type
 
         return data
 
@@ -273,7 +290,7 @@ class floatType(anyType):
         if type(data) not in (IntType, LongType, FloatType) or \
             data < -3.4028234663852886E+38 or \
             data >  3.4028234663852886E+38:
-            raise ValueError, "invalid %s value" % self._type
+            raise ValueError, "invalid %s value: %s" % (self._type, repr(data))
 
         return data
 
@@ -288,7 +305,7 @@ class doubleType(anyType):
         if type(data) not in (IntType, LongType, FloatType) or \
             data < -1.7976931348623158E+308 or \
             data  > 1.7976931348623157E+308:
-            raise ValueError, "invalid %s value" % self._type
+            raise ValueError, "invalid %s value: %s" % (self._type, repr(data))
 
         return data
 
@@ -1230,20 +1247,43 @@ class compoundType(anyType):
             raise Error, "a compound can't be instantiated directly"
 
         anyType.__init__(self, data, name, typed, attrs)
-        self._aslist    = []
-        self._asdict    = {}
         self._keyord    = []
 
         if type(data) == DictType:
             self.__dict__.update(data)
 
+    def _aslist(self, item=None):
+        if item is not None:
+            return self.__dict__[self._keyord[item]]
+        else:
+            return map( lambda x: self.__dict__[x], self._keyord)
+
+    def _asdict(self, item=None, encoding=Config.dict_encoding):
+        if item is not None:
+            if type(item) in (UnicodeType,StringType):
+                item = item.encode(encoding)
+            return self.__dict__[item]
+        else:
+            retval = {}
+            def fun(x): retval[x.encode(encoding)] = self.__dict__[x]
+
+            if hasattr(self, '_keyord'):
+                map( fun, self._keyord)
+            else:
+                for name in dir(self):
+                    if isPublic(name):
+                        retval[name] = getattr(self,name)
+            return retval
+
+ 
     def __getitem__(self, item):
         if type(item) == IntType:
-            return self._aslist[item]
-        return getattr(self, item)
+            return self.__dict__[self._keyord[item]]
+        else:
+            return getattr(self, item)
 
     def __len__(self):
-        return len(self._aslist)
+        return len(self._keyord)
 
     def __nonzero__(self):
         return 1
@@ -1252,30 +1292,24 @@ class compoundType(anyType):
         return filter(lambda x: x[0] != '_', self.__dict__.keys())
 
     def _addItem(self, name, value, attrs = None):
-        d = self._asdict
 
-        if d.has_key(name):
-            if type(d[name]) != ListType:
-                d[name] = [d[name]]
-            d[name].append(value)
+        if name in self._keyord:
+            if type(self.__dict__[name]) != ListType:
+                self.__dict__[name] = [self.__dict__[name]]
+            self.__dict__[name].append(value)
         else:
-            d[name] = value
-
-        self._keyord.append(name)
-        self._aslist.append(value)
-        self.__dict__[name] = d[name]
-
+            self.__dict__[name] = value
+            self._keyord.append(name)
+            
     def _placeItem(self, name, value, pos, subpos = 0, attrs = None):
-        d = self._asdict
 
-        if subpos == 0 and type(d[name]) != ListType:
-            d[name] = value
+        if subpos == 0 and type(self.__dict__[name]) != ListType:
+            self.__dict__[name] = value
         else:
-            d[name][subpos] = value
+            self.__dict__[name][subpos] = value
 
         self._keyord[pos] = name
-        self._aslist[pos] = value
-        self.__dict__[name] = d[name]
+
 
     def _getItemAsList(self, name, default = []):
         try:
@@ -1287,10 +1321,13 @@ class compoundType(anyType):
             return d
         return [d]
 
+    def __str__(self):
+        return anyType.__str__(self) + ": " + str(self._asdict())
+
+    def __repr__(self):
+        return self.__str__()
 
 class structType(compoundType):
-    def __str__(self):
-        return str(self._asdict)
     pass
 
 class headerType(structType):
@@ -1369,6 +1406,43 @@ class arrayType(UserList.UserList, compoundType):
 
             self.data = a
 
+
+    def _aslist(self, item=None):
+        if item is not None:
+            return self.data[int(item)]
+        else:
+            return self.data
+
+    def _asdict(self, item=None, encoding=Config.dict_encoding):
+        if item is not None:
+            if type(item) in (UnicodeType,StringType):
+                item = item.encode(encoding)
+            return self.data[int(item)]
+        else:
+            retval = {}
+            def fun(x): retval[str(x).encode(encoding)] = self.data[x]
+            
+            map( fun, range(len(self.data)) )
+            return retval
+ 
+    def __getitem__(self, item):
+        try:
+            return self.data[int(item)]
+        except ValueError:
+            return getattr(self, item)
+
+    def __len__(self):
+        return len(self.data)
+
+    def __nonzero__(self):
+        return 1
+
+    def __str__(self):
+        return anyType.__str__(self) + ": " + str(self._aslist())
+
+    def _keys(self):
+        return filter(lambda x: x[0] != '_', self.__dict__.keys())
+
     def _addItem(self, name, value, attrs):
         if self._full:
             raise ValueError, "Array is full"
@@ -1446,7 +1520,9 @@ class arrayType(UserList.UserList, compoundType):
                 self._poss[i + 1] += 1
 
             if self._dims[-1] and self._poss[-1] >= self._dims[-1]:
-                self._full = 1
+                #self._full = 1
+                #FIXME: why is this occuring?
+                pass
 
     def _placeItem(self, name, value, pos, subpos, attrs = None):
         curpos = [0] * len(self._dims)
@@ -1477,12 +1553,14 @@ class arrayType(UserList.UserList, compoundType):
 
 class typedArrayType(arrayType):
     def __init__(self, data = None, name = None, typed = None, attrs = None,
-        offset = 0, rank = None, asize = 0, elemsname = None):
+        offset = 0, rank = None, asize = 0, elemsname = None, complexType = 0):
 
         arrayType.__init__(self, data, name, attrs, offset, rank, asize,
             elemsname)
 
+        self._typed = 1
         self._type = typed
+        self._complexType = complexType
 
 class faultType(structType, Error):
     def __init__(self, faultcode = "", faultstring = "", detail = None):
@@ -1512,3 +1590,147 @@ class faultType(structType, Error):
 
     def __call__(self):
         return (self.faultcode, self.faultstring, self.detail)        
+
+class SOAPException(Exception):
+    def __init__(self, code="", string="", detail=None):
+        self.value = ("SOAPpy SOAP Exception", code, string, detail)
+        self.code = code
+        self.string = string
+        self.detail = detail
+
+    def __str__(self):
+        return repr(self.value)
+
+class RequiredHeaderMismatch(Exception):
+    def __init__(self, value):
+        self.value = value
+
+    def __str__(self):
+        return repr(self.value)
+
+class MethodNotFound(Exception):
+    def __init__(self, value):
+        (val, detail) = value.split(":")
+        self.value = val
+        self.detail = detail
+
+    def __str__(self):
+        return repr(self.value, self.detail)
+
+class AuthorizationFailed(Exception):
+    def __init__(self, value):
+        self.value = value
+
+    def __str__(self):
+        return repr(self.value)
+
+class MethodFailed(Exception):
+    def __init__(self, value):
+        self.value = value
+
+    def __str__(self):
+        return repr(self.value)
+        
+#######
+# Convert complex SOAPpy objects to native python equivalents
+#######
+
+def simplify(object, level=0):
+    """
+    Convert the SOAPpy objects and thier contents to simple python types.
+
+    This function recursively converts the passed 'container' object,
+    and all public subobjects. (Private subobjects have names that
+    start with '_'.)
+    
+    Conversions:
+    - faultType    --> raise python exception
+    - arrayType    --> array
+    - compoundType --> dictionary
+    """
+    
+    if level > 10:
+        return object
+    
+    if isinstance( object, faultType ):
+        if object.faultstring == "Required Header Misunderstood":
+            raise RequiredHeaderMismatch(object.detail)
+        elif object.faultstring == "Method Not Found":
+            raise MethodNotFound(object.detail)
+        elif object.faultstring == "Authorization Failed":
+            raise AuthorizationFailed(object.detail)
+        elif object.faultstring == "Method Failed":
+            raise MethodFailed(object.detail)
+        else:
+            se = SOAPException(object.faultcode, object.faultstring,
+                               object.detail)
+            raise se
+    elif isinstance( object, arrayType ):
+        data = object._aslist()
+        for k in range(len(data)):
+            data[k] = simplify(data[k], level=level+1)
+        return data
+    elif isinstance( object, compoundType ) or isinstance(object, structType):
+        data = object._asdict()
+        for k in data.keys():
+            if isPublic(k):
+                data[k] = simplify(data[k], level=level+1)
+        return data
+    elif type(object)==DictType:
+        for k in object.keys():
+            if isPublic(k):
+                object[k] = simplify(object[k])
+        return object
+    elif type(object)==list:
+        for k in range(len(object)):
+            object[k] = simplify(object[k])
+        return object
+    else:
+        return object
+
+
+def simplify_contents(object, level=0):
+    """
+    Convert the contents of SOAPpy objects to simple python types.
+
+    This function recursively converts the sub-objects contained in a
+    'container' object to simple python types.
+    
+    Conversions:
+    - faultType    --> raise python exception
+    - arrayType    --> array
+    - compoundType --> dictionary
+    """
+    
+    if level>10: return object
+
+    if isinstance( object, faultType ):
+        for k in object._keys():
+            if isPublic(k):
+                setattr(object, k, simplify(object[k], level=level+1))
+        raise object
+    elif isinstance( object, arrayType ): 
+        data = object._aslist()
+        for k in range(len(data)):
+            object[k] = simplify(data[k], level=level+1)
+    elif isinstance(object, structType):
+        data = object._asdict()
+        for k in data.keys():
+            if isPublic(k):
+                setattr(object, k, simplify(data[k], level=level+1))
+    elif isinstance( object, compoundType ) :
+        data = object._asdict()
+        for k in data.keys():
+            if isPublic(k):
+                object[k] = simplify(data[k], level=level+1)
+    elif type(object)==DictType:
+        for k in object.keys():
+            if isPublic(k):
+                object[k] = simplify(object[k])
+    elif type(object)==list:
+        for k in range(len(object)):
+            object[k] = simplify(object[k])
+    
+    return object
+
+

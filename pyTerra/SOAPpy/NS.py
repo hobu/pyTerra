@@ -3,7 +3,7 @@
 #
 # SOAPpy - Cayce Ullman       (cayce@actzero.com)
 #          Brian Matthews     (blm@actzero.com)
-#          Gregory Warnes     (gregory_r_warnes@groton.pfizer.com)
+#          Gregory Warnes     (Gregory.R.Warnes@Pfizer.com)
 #          Christopher Blunck (blunck@gst.com)
 #
 ################################################################################
@@ -42,9 +42,8 @@
 
 from __future__ import nested_scopes
 
-ident = '$Id: NS.py,v 1.1 2003/10/01 02:00:27 hobu Exp $'
-
-__version__ = "0.9.9-pre6-CVS"
+ident = '$Id: NS.py,v 1.4 2005/02/15 16:32:22 warnes Exp $'
+from version import __version__
 
 ##############################################################################
 # Namespace Class

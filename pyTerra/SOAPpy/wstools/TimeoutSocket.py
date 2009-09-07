@@ -13,7 +13,7 @@
 	Radovan Garabik <garabik@melkor.dnp.fmph.uniba.sk>
 """
 
-ident = "$Id: TimeoutSocket.py,v 1.1 2003/10/01 02:00:27 hobu Exp $"
+ident = "$Id: TimeoutSocket.py,v 1.2 2003/05/20 21:10:12 warnes Exp $"
 
 import string, socket, select, errno
 

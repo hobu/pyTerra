@@ -1,5 +1,6 @@
 
-ident = '$Id: __init__.py,v 1.1 2003/10/01 02:00:27 hobu Exp $'
+ident = '$Id: __init__.py,v 1.9 2004/01/31 04:20:06 warnes Exp $'
+from version import __version__
 
 from Client      import *
 from Config      import *

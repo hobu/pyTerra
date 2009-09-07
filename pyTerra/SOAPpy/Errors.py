@@ -3,7 +3,7 @@
 #
 # SOAPpy - Cayce Ullman       (cayce@actzero.com)
 #          Brian Matthews     (blm@actzero.com)
-#          Gregory Warnes     (gregory_r_warnes@groton.pfizer.com)
+#          Gregory Warnes     (Gregory.R.Warnes@Pfizer.com)
 #          Christopher Blunck (blunck@gst.com)
 #
 ################################################################################
@@ -40,7 +40,8 @@
 ################################################################################
 """
 
-ident = '$Id: Errors.py,v 1.1 2003/10/01 02:00:27 hobu Exp $'
+ident = '$Id: Errors.py,v 1.5 2005/02/15 16:32:22 warnes Exp $'
+from version import __version__
 
 import exceptions
 

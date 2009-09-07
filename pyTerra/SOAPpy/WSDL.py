@@ -1,14 +1,17 @@
-'''Parse web services description language to get SOAP methods.
+"""Parse web services description language to get SOAP methods.
 
-Rudimentary support.'''
+Rudimentary support."""
 
-ident = '$Id: WSDL.py,v 1.1 2003/10/01 02:00:27 hobu Exp $'
+ident = '$Id: WSDL.py,v 1.11 2005/02/21 20:16:15 warnes Exp $'
+from version import __version__
 
 import wstools
 from Client import SOAPProxy, SOAPAddress
+from Config import Config
+import urllib
 
 class Proxy:
-    '''WSDL Proxy.
+    """WSDL Proxy.
     
     SOAPProxy wrapper that parses method names, namespaces, soap actions from
     the web service description language (WSDL) file passed into the
@@ -27,9 +30,9 @@ class Proxy:
 
 
     See WSDLTools.SOAPCallinfo for more info on each method's attributes.
-    '''
+    """
 
-    def __init__(self, wsdlsource):
+    def __init__(self, wsdlsource, config=Config, **kw ):
 
         reader = wstools.WSDLTools.WSDLReader()
         self.wsdl = None
@@ -54,11 +57,9 @@ class Proxy:
                 pass
 
         if self.wsdl is None:
-            import urllib
-            try: 
+            try:
                 stream = urllib.urlopen(wsdlsource)
-                self.wsdl = reader.loadFromURL(wsdlsource)
-                #print 'url'
+                self.wsdl = reader.loadFromStream(stream, wsdlsource)
             except (IOError, OSError): pass
 
         if self.wsdl is None:
@@ -78,7 +79,8 @@ class Proxy:
             callinfo = wstools.WSDLTools.callInfoFromWSDL(port, operation.name)
             self.methods[callinfo.methodName] = callinfo
 
-        self.soapproxy = SOAPProxy('http://localhost/dummy.webservice')
+        self.soapproxy = SOAPProxy('http://localhost/dummy.webservice',
+                                   config=config, **kw)
 
     def __str__(self): 
         s = ''
@@ -87,14 +89,31 @@ class Proxy:
         return s
 
     def __getattr__(self, name):
-        '''Set up environment then let parent class handle call.
+        """Set up environment then let parent class handle call.
 
-        Raises AttributeError is method name is not found.'''
+        Raises AttributeError is method name is not found."""
 
-        if name not in self.methods.keys(): raise AttributeError, name
+        if not self.methods.has_key(name): raise AttributeError, name
 
         callinfo = self.methods[name]
         self.soapproxy.proxy = SOAPAddress(callinfo.location)
         self.soapproxy.namespace = callinfo.namespace
         self.soapproxy.soapaction = callinfo.soapAction
         return self.soapproxy.__getattr__(name)
+
+    def show_methods(self):
+        for key in self.methods.keys():
+            method = self.methods[key]
+            print "Method Name:", key.ljust(15)
+            print
+            inps = method.inparams
+            for parm in range(len(inps)):
+                details = inps[parm]
+                print "   In #%d: %s  (%s)" % (parm, details.name, details.type)
+            print
+            outps = method.outparams
+            for parm in range(len(outps)):
+                details = outps[parm]
+                print "   Out #%d: %s  (%s)" % (parm, details.name, details.type)
+            print
+
