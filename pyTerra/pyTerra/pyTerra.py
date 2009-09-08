@@ -405,7 +405,6 @@ def ConvertUtmPtToLonLatPt(utm):
                 # reraise the KeyError as our indication of being done
                 if isinstance(e, KeyError):
                     raise KeyError
-                import pdb;pdb.set_trace()
                 raise pyTerraError(e[1])
     except KeyError: #KeyError was raised, which means we're good to go
         pass
@@ -620,7 +619,6 @@ if __name__ == '__main__':
                               pt)
         def testConvertLonLatPtToNearestPlaceequals(self):
             """ConvertLonLatPtToNearestPlace returns 7 km SW of Rockford, Iowa"""
-          #  import pdb;pdb.set_trace()
             pt.Lon = -93.000
             pt.Lat = 43.000
             resp = ConvertLonLatPtToNearestPlace(pt)
