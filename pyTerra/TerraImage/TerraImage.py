@@ -42,19 +42,19 @@ class Retriever(Thread):
 
 class point(Types.structType):
     def __init__(self, Lat, Lon):
-        Types.anyType.__init__(self, None, 'point', 1, None)
-        self._aslist    = []
-        self._asdict    = {}
-        self._keyord    = []
+        Types.structType.__init__(self, None, (pyTerra.ns,'point'), 1, None)
+       # self._aslist    = []
+       # self._asdict    = {}
+       # self._keyord    = []
         self._addItem('Lat', float(Lat))
         self._addItem('Lon', float(Lon))
 
 class utm(Types.structType):
     def __init__(self, X, Y, Zone):
-        Types.anyType.__init__(self, None, 'utm', 1, None)
-        self._aslist    = []
-        self._asdict    = {}
-        self._keyord    = []
+        Types.structType.__init__(self, None, (pyTerra.ns,'utm'), 1, None)
+       # self._aslist    = []
+       # self._asdict    = {}
+       # self._keyord    = []
         self._addItem('X', float(X))
         self._addItem('Y', float(Y))
         self._addItem('Zone', int(Zone))
@@ -108,7 +108,7 @@ class TerraImage(object):
         tileslist = []
         for x in range(int(nw.TileMeta.Id.X), int(nw.TileMeta.Id.X) + self.numx):
             for y in range(int(se.TileMeta.Id.Y), int(se.TileMeta.Id.Y) + self.numy):
-                t = Types.structType()
+                t = Types.structType(name=(pyTerra.ns,'ns1'))
                 t._addItem('Scene', self.Zone) #t.Scene = float(X))Scene = self.Zone
                 t._addItem('X', int(x)); t._addItem('Y', int(y))
                 t._addItem('Scale', self.Scale); t._addItem('Theme', self.Theme) 
@@ -309,4 +309,4 @@ if __name__ =='__main__':
     ti.write_worldfile('test.jpgw')
     ti.write('test.jpg')
     ti.write_worldfile('test.jpgw')
-    print ti.dates
+#    print ti.dates

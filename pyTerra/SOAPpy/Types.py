@@ -71,9 +71,15 @@ class anyType:
         if self.__class__ == anyType:
             raise Error, "anyType can't be instantiated directly"
 
-        if type(name) in (ListType, TupleType):
-            self._ns, self._name = name
-        else:
+
+        try:
+            iter(name)
+            if not isinstance(name, basestring):
+                self._ns, self._name = name
+            else:
+                self._ns = self._validURIs[0]
+                self._name = name
+        except TypeError:
             self._ns = self._validURIs[0]
             self._name = name
             

@@ -610,6 +610,7 @@ class SOAPBuilder:
                             t = k                      
                     else:
                         t = k
+                    # import pdb;pdb.set_trace()
                     self.dump(obj._aslist(i), t, 1, ns_map)
                     keylist.remove(obj._keyord[i])
 
