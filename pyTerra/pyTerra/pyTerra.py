@@ -124,8 +124,11 @@ def GetPlaceList(placeName, MaxItems, imagePresence="true"):
             except socket.error , e:
                 if e[0] == 10060:
                     continue
-                else:
-                    raise pyTerraError(e[1])
+            except Exception, e:
+                # reraise the KeyError as our indication of being done
+                if isinstance(e, KeyError):
+                    raise KeyError
+                raise pyTerraError(e[1])
     except KeyError: #KeyError was raised, which means we're good to go
         pass
 
@@ -151,8 +154,11 @@ def GetPlaceListInRect(upperLeft, lowerRight, ptype, MaxItems):
             except socket.error , e:
                 if e[0] == 10060:
                     continue
-                else:
-                    raise pyTerraError(e[1])
+            except Exception, e:
+                # reraise the KeyError as our indication of being done
+                if isinstance(e, KeyError):
+                    raise KeyError
+                raise pyTerraError(e[1])
     except KeyError: #KeyError was raised, which means we're good to go
         pass
 
@@ -174,8 +180,11 @@ def GetPlaceFacts(place):
             except socket.error , e:
                 if e[0] == 10060:
                     continue
-                else:
-                    raise pyTerraError(e[1])
+            except Exception, e:
+                # reraise the KeyError as our indication of being done
+                if isinstance(e, KeyError):
+                    raise KeyError
+                raise pyTerraError(e[1])
     except KeyError: #KeyError was raised, which means we're good to go
         pass
     
@@ -196,13 +205,17 @@ def GetAreaFromPt(center, theme, scale, displayPixWidth, displayPixHeight):
                                            scale = scale,
                                            theme = theme,
                                            )
+                
                 if resp:
                     raise KeyError
             except socket.error , e:
                 if e[0] == 10060:
                     continue
-                else:
-                    raise pyTerraError(e[1])
+            except Exception, e:
+                # reraise the KeyError as our indication of being done
+                if isinstance(e, KeyError):
+                    raise KeyError
+                raise pyTerraError(e[1])
     except KeyError: #KeyError was raised, which means we're good to go
         pass
 
@@ -224,8 +237,11 @@ def GetAreaFromTileId(id):
             except socket.error , e:
                 if e[0] == 10060:
                     continue
-                else:
-                    raise pyTerraError(e[1])
+            except Exception, e:
+                # reraise the KeyError as our indication of being done
+                if isinstance(e, KeyError):
+                    raise KeyError
+                raise pyTerraError(e[1])
     except KeyError: #KeyError was raised, which means we're good to go
         pass
 
@@ -255,8 +271,11 @@ def GetAreaFromRect(upperLeft, lowerRight, theme, scale):
             except socket.error , e:
                 if e[0] == 10060:
                     continue
-                else:
-                    raise pyTerraError(e[1])
+            except Exception, e:
+                # reraise the KeyError as our indication of being done
+                if isinstance(e, KeyError):
+                    raise KeyError
+                raise pyTerraError(e[1])
     except KeyError: #KeyError was raised, which means we're good to go
         pass
 
@@ -278,8 +297,11 @@ def GetTileMetaFromTileId(id):
             except socket.error , e:
                 if e[0] == 10060:
                     continue
-                else:
-                    raise pyTerraError(e[1])
+            except Exception, e:
+                # reraise the KeyError as our indication of being done
+                if isinstance(e, KeyError):
+                    raise KeyError
+                raise pyTerraError(e[1])
     except KeyError: #KeyError was raised, which means we're good to go
         pass
     
@@ -303,8 +325,11 @@ def GetTileMetaFromLonLatPt(point, theme, scale):
             except socket.error , e:
                 if e[0] == 10060:
                     continue
-                else:
-                    raise pyTerraError(e[1])
+            except Exception, e:
+                # reraise the KeyError as our indication of being done
+                if isinstance(e, KeyError):
+                    raise KeyError
+                raise pyTerraError(e[1])
     except KeyError: #KeyError was raised, which means we're good to go
         pass
     if isinstance (resp, Types.faultType):
@@ -325,8 +350,11 @@ def GetTile(id):
             except socket.error , e:
                 if e[0] == 10060:
                     continue
-                else:
-                    raise pyTerraError(e[1])
+            except Exception, e:
+                # reraise the KeyError as our indication of being done
+                if isinstance(e, KeyError):
+                    raise KeyError
+                raise pyTerraError(e[1])
     except KeyError: #KeyError was raised, which means we're good to go
         pass
     if isinstance (resp, Types.faultType):
@@ -347,8 +375,11 @@ def ConvertLonLatPtToNearestPlace(point):
             except socket.error , e:
                 if e[0] == 10060:
                     continue
-                else:
-                    raise pyTerraError(e[1])
+            except Exception, e:
+                # reraise the KeyError as our indication of being done
+                if isinstance(e, KeyError):
+                    raise KeyError
+                raise pyTerraError(e[1])
     except KeyError: #KeyError was raised, which means we're good to go
         pass
     
@@ -370,8 +401,11 @@ def ConvertUtmPtToLonLatPt(utm):
             except socket.error , e:
                 if e[0] == 10060:
                     continue
-                else:
-                    raise pyTerraError(e[1])
+            except Exception, e:
+                # reraise the KeyError as our indication of being done
+                if isinstance(e, KeyError):
+                    raise KeyError
+                raise pyTerraError(e[1])
     except KeyError: #KeyError was raised, which means we're good to go
         pass
     if isinstance (resp, Types.faultType):
@@ -392,8 +426,11 @@ def ConvertLonLatPtToUtmPt(point):
             except socket.error , e:
                 if e[0] == 10060:
                     continue
-                else:
-                    raise pyTerraError(e[1])
+            except Exception, e:
+                # reraise the KeyError as our indication of being done
+                if isinstance(e, KeyError):
+                    raise KeyError
+                raise pyTerraError(e[1])
     except KeyError: #KeyError was raised, which means we're good to go
         pass
 
@@ -415,8 +452,11 @@ def ConvertPlaceToLonLatPt(place):
             except socket.error , e:
                 if e[0] == 10060:
                     continue
-                else:
-                    raise pyTerraError(e[1])
+            except Exception, e:
+                # reraise the KeyError as our indication of being done
+                if isinstance(e, KeyError):
+                    raise KeyError
+                raise pyTerraError(e[1])
     except KeyError: #KeyError was raised, which means we're good to go
         pass
 
@@ -438,8 +478,11 @@ def GetTheme(theme):
             except socket.error , e:
                 if e[0] == 10060:
                     continue
-                else:
-                    raise pyTerraError(e[1])
+            except Exception, e:
+                # reraise the KeyError as our indication of being done
+                if isinstance(e, KeyError):
+                    raise KeyError
+                raise pyTerraError(e[1])
     except KeyError: #KeyError was raised, which means we're good to go
         pass
 
@@ -461,8 +504,11 @@ def GetLatLonMetrics(point):
             except socket.error , e:
                 if e[0] == 10060:
                     continue
-                else:
-                    raise pyTerraError(e[1])
+            except Exception, e:
+                # reraise the KeyError as our indication of being done
+                if isinstance(e, KeyError):
+                    raise KeyError
+                raise pyTerraError(e[1])
     except KeyError: #KeyError was raised, which means we're good to go
         pass
 
@@ -486,8 +532,11 @@ def CountPlacesInRect(upperLeft, lowerRight, ptype):
             except socket.error , e:
                 if e[0] == 10060:
                     continue
-                else:
-                    raise pyTerraError(e[1])
+            except Exception, e:
+                # reraise the KeyError as our indication of being done
+                if isinstance(e, KeyError):
+                    raise KeyError
+                raise pyTerraError(e[1])
     except KeyError: #KeyError was raised, which means we're good to go
         pass
 
@@ -510,24 +559,25 @@ if __name__ == '__main__':
     displayPixWidth = 200
     displayPixHeight = 200
 
-    place = Types.structType()
+    place = Types.structType(name=(ns,'ns1'))
     place.City = 'Ames'
     place.State = 'Iowa'
     place.Country = 'United States'
 
-    pt = Types.structType()
+    pt = Types.structType(name=(ns,'ns1'))
     pt.Lon = -93.000
+    
     pt.Lat = 43.000
     center = pt
 
-    upperLeft = Types.structType()
+    upperLeft = Types.structType(name=(ns,'ns1'))
     upperLeft.Lon = -93.000
     upperLeft.Lat = 43.000
-
-    lowerRight = Types.structType()
+    
+    lowerRight = Types.structType(name=(ns,'ns1'))
     lowerRight.Lon = -92.8999
     lowerRight.Lat = 42.8999
-    
+    # 
     class PyTerraTest(unittest.TestCase):
         def testGetAreaFromPtassert(self):
             """GetAreaFromPt traps bad inputs"""
@@ -569,6 +619,7 @@ if __name__ == '__main__':
                               pt)
         def testConvertLonLatPtToNearestPlaceequals(self):
             """ConvertLonLatPtToNearestPlace returns 7 km SW of Rockford, Iowa"""
+          #  import pdb;pdb.set_trace()
             pt.Lon = -93.000
             pt.Lat = 43.000
             resp = ConvertLonLatPtToNearestPlace(pt)
@@ -611,7 +662,7 @@ if __name__ == '__main__':
             self.assertEqual(resp.NorthWest.Lon, '-93.009819030761719')
         def testGetAreaFromTileIdassert(self):
             """GetAreaFromTileId traps bad inputs"""
-            id = Types.structType()
+            id = Types.structType(name=(ns,'ns1'))
             id.X = 'abc'
             id.Y = '5951'
             id.scene = '15'
@@ -622,7 +673,7 @@ if __name__ == '__main__':
                               id)
         def testGetAreaFromTileIdequals(self):
             """GetAreaFromTileId returns correct results"""
-            id = Types.structType()
+            id = Types.structType(name=(ns,'ns1'))
             id.X = '624'
             id.Y = '5951'
             id.Scene = '15'
@@ -633,7 +684,7 @@ if __name__ == '__main__':
             self.assertEqual(resp.NorthWest.TileMeta.NorthWest.Lon, '-93.019638061523438')
         def testGetTileassert(self):
             """GetTile traps bad inputs"""
-            id = Types.structType()
+            id = Types.structType(name=(ns,'ns1'))
             id.X = 'abc'
             id.Y = '5951'
             id.Scene = '15'
@@ -644,7 +695,7 @@ if __name__ == '__main__':
                               id)
         def testGetTileequals(self):
             """GetTile returns correct results"""
-            id = Types.structType()
+            id = Types.structType(name=(ns,'ns1'))
             id.X = '624'
             id.Y = '5951'
             id.Scene = '15'
@@ -654,7 +705,7 @@ if __name__ == '__main__':
             self.assertEqual(len(resp), 6942)
         def testConvertUtmPtToLonLatPtassert(self):
             """ConvertUtmPtToLonLatPt traps bad inputs"""
-            utm = Types.structType()
+            utm = Types.structType(name=(ns,'ns1'))
             utm.X = 'abc'
             utm.Y = '4760814.7962907264'
             utm.Zone = '15'
@@ -663,7 +714,7 @@ if __name__ == '__main__':
                               utm)
         def testConvertUtmPtToLonLatPtequals(self):
             """ConvertUtmPtToLonLatPt returns correct results"""
-            utm = Types.structType()
+            utm = Types.structType(name=(ns,'ns1'))
             utm.X = '500000'
             utm.Y = '4760814.7962907264'
             utm.Zone = '15'
@@ -708,7 +759,7 @@ if __name__ == '__main__':
                             place)
         def testGetPlaceFactsequals(self):
             """GetPlaceFacts returns correct results"""
-            place = Types.structType()
+            place = Types.structType(name=(ns,'ns1'))
             place.City = 'Ames'
             place.State = 'Iowa'
             place.Country = 'United States'

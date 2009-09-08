@@ -142,7 +142,8 @@ class SOAPBuilder:
                 args = (self.args,)
             else:
                 args = self.args
-
+            
+            
             for i in args:
                 self.dump(i, typed = typed, ns_map = ns_map)
 
@@ -151,7 +152,15 @@ class SOAPBuilder:
                     self.dump(self.kw.get(k), k, typed = typed, ns_map = ns_map)                
             else:
                 for (k, v) in self.kw.items():
-                    self.dump(v, k, typed = typed, ns_map = ns_map)
+                    # import pdb;pdb.set_trace()
+                    if methodns:
+                        if methodns not in k:
+                            tag = methodns + k
+                        else:
+                            tag = k
+                    else:
+                        tag = k
+                    self.dump(v, tag, typed = typed, ns_map = ns_map)
                 
         except RecursionError:
             if self.use_refs == 0:
@@ -281,10 +290,11 @@ class SOAPBuilder:
         if Config.debug: print "In dump.", "obj=", obj
         ns_map = ns_map.copy()
         self.depth += 1
-
+        
+        # import pdb;pdb.set_trace()
         if type(tag) not in (NoneType, StringType, UnicodeType):
             raise KeyError, "tag must be a string or None"
-
+        
         try:
             meth = getattr(self, "dump_" + type(obj).__name__)
         except AttributeError:
@@ -353,6 +363,7 @@ class SOAPBuilder:
             obj = "NaN"
         else:
             obj = repr(obj)
+        
 
 	# Note: python 'float' is actually a SOAP 'double'.
         self.out.append(self.dumper(None, "double", obj, tag, typed, ns_map,
@@ -518,8 +529,14 @@ class SOAPBuilder:
                         (tag, id, a, self.genroot(ns_map)))
 
         for (k, v) in obj.items():
-            if k[0] != "_":
+            if (k[0] != "_"):
+
+                # import pdb;pdb.set_trace()
+                if ns:
+                    if ns not in k:
+                        k = ns+k
                 self.dump(v, k, 1, ns_map)
+
 
         self.out.append('</%s>\n' % tag)
 
@@ -527,6 +544,7 @@ class SOAPBuilder:
 
     def dump_instance(self, obj, tag, typed = 1, ns_map = {}):
         if Config.debug: print "In dump_instance.", "obj=", obj, "tag=", tag
+        # import pdb;pdb.set_trace()
         if not tag:
             # If it has a name use it.
             if isinstance(obj, anyType) and obj._name:
@@ -534,7 +552,7 @@ class SOAPBuilder:
             else:
                 tag = self.gentag()
         tag = toXMLname(tag) # convert from SOAP 1.2 XML name encoding
-
+        
         if isinstance(obj, arrayType):      # Array
             self.dump_list(obj, tag, typed, ns_map)
             return
@@ -565,13 +583,17 @@ class SOAPBuilder:
             return
 
         if isinstance(obj, structType):
+            
+
             # Check for namespace
             ndecl = ''
             ns = obj._validNamespaceURI(self.config.typesNamespaceURI,
                 self.config.strictNamespaces)
             if ns:
                 ns, ndecl = self.genns(ns_map, ns)
-                tag = ns + tag
+                if ns not in tag:
+                    tag = ns + tag
+            # import pdb;pdb.set_trace()
             self.out.append("<%s%s%s%s%s>\n" % (tag, ndecl, id, a, r))
 
             keylist = obj.__dict__.keys()
@@ -579,13 +601,27 @@ class SOAPBuilder:
             # first write out items with order information
             if hasattr(obj, '_keyord'):
                 for i in range(len(obj._keyord)):
-                    self.dump(obj._aslist(i), obj._keyord[i], 1, ns_map)
+                    
+                    k = obj._keyord[i]
+                    if ns:
+                        if ns not in k:
+                            t = ns + k
+                        else:
+                            t = k                      
+                    else:
+                        t = k
+                    self.dump(obj._aslist(i), t, 1, ns_map)
                     keylist.remove(obj._keyord[i])
 
             # now write out the rest
             for k in keylist:
                 if (k[0] != "_"):
-                    self.dump(getattr(obj,k), k, 1, ns_map)
+                    o = getattr(obj,k)
+                    # import pdb;pdb.set_trace()
+                    if ns:
+                        if ns not in k:
+                            k = ns+k
+                    self.dump(o, k, 1, ns_map)
 
             if isinstance(obj, bodyType):
                 self.multis = 1

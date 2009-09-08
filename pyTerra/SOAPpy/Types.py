@@ -179,10 +179,14 @@ class anyType:
     def _validNamespaceURI(self, URI, strict):
         if not hasattr(self, '_typed') or not self._typed:
             return None
-        if URI in self._validURIs:
-            return URI
+        
+    #    import pdb;pdb.set_trace()
+    #    return 'http://terraserver-usa.com/terraserver/'
+
         if not strict:
             return self._ns
+        if URI in self._validURIs:
+            return URI
         raise AttributeError, \
             "not a valid namespace for type %s" % self._type
 
@@ -1292,7 +1296,6 @@ class compoundType(anyType):
         return filter(lambda x: x[0] != '_', self.__dict__.keys())
 
     def _addItem(self, name, value, attrs = None):
-
         if name in self._keyord:
             if type(self.__dict__[name]) != ListType:
                 self.__dict__[name] = [self.__dict__[name]]
