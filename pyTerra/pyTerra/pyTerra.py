@@ -94,10 +94,10 @@ import socket
 
 __author__ = "Howard Butler  hobu@hobu.net"
 __copyright__ ='(c) 2009 Howard Butler'
-__version__= "0.8"
+__version__= "0.9"
 
-url = "http://terraservice.net/terraservice.asmx"
-ns = "http://terraserver-usa.com/terraserver/"
+url = "http://terraserverusa.com/TerraService2.asmx"
+ns = "http://msrmaps.com/"
 debug = 0
 
 retries = 2
