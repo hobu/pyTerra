@@ -5,8 +5,9 @@ except ImportError:
     from distutils.core import setup, Extension
     
 
+import pyTerra
 name="pyTerra"
-version="0.8"
+version=pyTerra.__version__
 description="Terraserver Module for Python"
 author="Howard Butler"
 author_email="hobu.inc@gmail.com"
