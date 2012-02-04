@@ -1,0 +1,5 @@
+syntax: glob
+build/*
+pyTerra.egg-info/*
+dist/*
+*.pyc
