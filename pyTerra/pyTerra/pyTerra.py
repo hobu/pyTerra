@@ -1,14 +1,11 @@
 """Python API for the Microsoft TerraServer.
-Copyright (c) 2003 Howard Butler hobu@hobu.net
-This module requires a hacked version of SOAPpy (see http:\\hobu.biz\software\pyTerra\)
-which is included in the module.
-and pyXML 0.7 or greater.
+Copyright (c) 2012 Howard Butler hobu@hobu.net
 
 *******************************************************************************
 pyTerra: Python Support for the Microsoft TerraServer
 
 *******************************************************************************
-Version: 0.8
+Version: 0.9
 
 *******************************************************************************
 License:
@@ -59,7 +56,6 @@ Python 2.2 or greater
 pyXML 0.8.2 or greater
 (http://sourceforge.net/project/showfiles.php?group_id=6473)
 
-A hacked version of SOAPpy 0.12, which is packaged inside of pyTerra.
 *******************************************************************************
 Future plans:
 This version of pyTerra removes the need for the Microsoft SOAP kit that the
@@ -78,19 +74,18 @@ to check its information is in Iowa.
 *******************************************************************************
 """
 
-# try:
-import SOAPpy
-from SOAPpy import SOAPProxy
-from SOAPpy import SOAPConfig
-from SOAPpy import Types
-# except ImportError:
-#     import sys
-#     sys.path.append('..')
-#     import SOAPpy
-#     from SOAPpy import SOAPProxy
-#     from SOAPpy import SOAPConfig
-#     from SOAPpy import Types
-import socket
+import datetime
+
+wsdl = 'http://msrmaps.com/TerraService2.asmx?WSDL'
+
+from suds.client import Client
+client = Client(wsdl)
+
+import logging
+logging.basicConfig(level=logging.INFO)
+logging.getLogger('suds.client').setLevel(logging.DEBUG)
+
+lookup = {'DOQ':1, 'DRG':2, "ORTHO":1}
 
 __author__ = "Howard Butler  hobu@hobu.net"
 __copyright__ ='(c) 2012 Howard Butler'
@@ -103,447 +98,353 @@ retries = 2
 
 class pyTerraError(Exception):
     """Custom exception for PyTerra"""
-    def __init__(self, message):
-        self.message = message
-    def __str__(self):
-        return repr(self.message)
-    
-def GetPlaceList(placeName, MaxItems, imagePresence="true"):
-    """Returns a list of PlaceItems that have the same placeName"""
-    sa = ns + 'GetPlaceList'
-    server = SOAPProxy(url, namespace=ns, soapaction=sa, config=SOAPConfig(debug=debug))
-    try:
-        for i in range(retries):
-            try:
-                resp = server.GetPlaceList(imagePresence = imagePresence,
-                                           MaxItems = MaxItems,
-                                           placeName = placeName)
-                if resp:
-                    raise KeyError
-            except socket.error , e:
-                if e[0] == 10060:
-                    continue
-            except SOAPpy.Types.faultType, e:
-                # reraise the KeyError as our indication of being done
-                if isinstance(e, KeyError):
-                    raise KeyError
-                raise pyTerraError(e[1])
-    except KeyError: #KeyError was raised, which means we're good to go
-        pass
 
-    if isinstance (resp, Types.faultType):
-        raise pyTerraError(resp.faultstring)
-    else:
-        return resp
+    
+def GetPlaceList(placeName, MaxItems=10, imagePresence=True):
+    """Returns a list of PlaceItems that have the same placeName"""
+    try:
+        resp = client.service.GetPlaceList(placeName, int(MaxItems), str(bool(imagePresence)).lower())
+    except Exception, e:
+        raise pyTerraError(e)
+
+    return resp
+
+def GetPlaceTypes():
+    t = client.factory.create("PlaceType")
+    return [i[0] for i in t]
+
+def GetScales():
+    t = client.factory.create("Scale")
+    return [i[0] for i in t]
 
 def GetPlaceListInRect(upperLeft, lowerRight, ptype, MaxItems):
     """Returns a list of places inside the bounding box"""
     #This function is not known to return good results
-    sa = ns + 'GetPlaceListInRect'
-    server = SOAPProxy(url, namespace=ns, soapaction=sa, config=SOAPConfig(debug=debug))
-    try:
-        for i in range(retries):
-            try:
-                resp = server.GetPlaceListInRect(upperLeft = upperLeft,
-                                              lowerRight = lowerRight,
-                                              ptype = ptype,
-                                              MaxItems = MaxItems)
-                if resp:
-                    raise KeyError
-            except socket.error , e:
-                if e[0] == 10060:
-                    continue
-            except SOAPpy.Types.faultType, e:
-                # reraise the KeyError as our indication of being done
-                if isinstance(e, KeyError):
-                    raise KeyError
-                raise pyTerraError(e[1])
-    except KeyError: #KeyError was raised, which means we're good to go
-        pass
 
-    if isinstance (resp, Types.faultType):
-        raise pyTerraError(resp.faultstring)
-    else:
-        return resp
+    ul = client.factory.create("LonLatPt")
+    ul.Lat = float(upperLeft.Lat)
+    ul.Lon = float(upperLeft.Lon)
+
+    lr = client.factory.create("LonLatPt")
+    lr.Lat = float(lowerRight.Lat)
+    lr.Lon = float(lowerRight.Lon)
+
+    if (ptype not in GetPlaceTypes()):
+        raise pyTerraError("type %s not available" % ptype)
+    try:
+        resp = client.service.GetPlaceListInRect(ul, lr, ptype, MaxItems)
+    except Exception, e:
+        raise pyTerraError(e)
+
+    return resp
+
 
 def GetPlaceFacts(place):
     """Gets facts about a place (park, CityTown, etc..)"""
-    sa = ns + 'GetPlaceFacts'
-    server = SOAPProxy(url, namespace=ns, soapaction=sa, config=SOAPConfig(debug=debug))
-    try:
-        for i in range(retries):
-            try:
-                resp = server.GetPlaceFacts(place = place)
-                if resp:
-                    raise KeyError
-            except socket.error , e:
-                if e[0] == 10060:
-                    continue
-            except SOAPpy.Types.faultType, e:
-                # reraise the KeyError as our indication of being done
-                if isinstance(e, KeyError):
-                    raise KeyError
-                raise pyTerraError(e[1])
-    except KeyError: #KeyError was raised, which means we're good to go
-        pass
+
+    p = client.factory.create("Place")
+    p.City = place.City
+    p.State = place.State
+    p.Country = place.Country
     
-    if isinstance (resp, Types.faultType):
-        raise pyTerraError(resp.faultstring)
-    else:
-        return resp
+    try:
+        resp = client.service.GetPlaceFacts(p)
+    except Exception, e:
+        raise pyTerraError(e)
+
+    return resp
+
     
 def GetAreaFromPt(center, theme, scale, displayPixWidth, displayPixHeight):
     """Returns an area (set of tiles) defined by a point"""
-    sa = ns + 'GetAreaFromPt'
-    server = SOAPProxy(url, namespace=ns, soapaction=sa, config=SOAPConfig(debug=debug))
-    try:
-        for i in range(retries):
-            try:
-                resp = server.GetAreaFromPt(center = center,displayPixHeight = displayPixHeight,
-                                           displayPixWidth = displayPixWidth,
-                                           scale = scale,
-                                           theme = theme,
-                                           )
-                
-                if resp:
-                    raise KeyError
-            except socket.error , e:
-                if e[0] == 10060:
-                    continue
-            except SOAPpy.Types.faultType, e:
-                # reraise the KeyError as our indication of being done
-                if isinstance(e, KeyError):
-                    raise KeyError
-                raise pyTerraError(e[1])
-    except KeyError: #KeyError was raised, which means we're good to go
-        pass
-
-    if isinstance (resp, Types.faultType):
-        raise pyTerraError(resp.faultstring)
-    else:
-        return resp
-
-def GetAreaFromTileId(id):
-    """Returns the bounding box for a TileMeta.Id"""
-    sa = ns + 'GetAreaFromTileId'
-    server = SOAPProxy(url, namespace=ns, soapaction=sa, config=SOAPConfig(debug=debug))
-    try:
-        for i in range(retries):
-            try:
-                resp = server.GetAreaFromTileId(id=id)
-                if resp:
-                    raise KeyError
-            except socket.error , e:
-                if e[0] == 10060:
-                    continue
-            except SOAPpy.Types.faultType, e:
-                # reraise the KeyError as our indication of being done
-                if isinstance(e, KeyError):
-                    raise KeyError
-                raise pyTerraError(e[1])
-    except KeyError: #KeyError was raised, which means we're good to go
-        pass
-
-    if isinstance (resp, Types.faultType):
-        raise pyTerraError(resp.faultstring)
-    else:
-        return resp
     
-    if isinstance (resp, Types.faultType):
-        raise pyTerraError(resp.faultstring)
-    else:
-        return resp
+    p = client.factory.create("LonLatPt")
+    p.Lat = float(center.Lat)
+    p.Lon = float(center.Lon)
+    
+    displayPixHeight = int(displayPixHeight)
+    displayPixWidth = int(displayPixHeight)
+    
+    if (scale not in GetScales()):
+        raise pyTerraError("Scale '%s' is not a valid scale" % scale)
+
+    try:
+        int(theme)
+    except ValueError:
+        try:
+            theme = lookup[theme.upper()]
+        except KeyError:
+            raise pyTerraError("Theme %s not found" % theme)
+
+
+    try:
+        resp = client.service.GetAreaFromPt(p, theme, scale, displayPixWidth, displayPixHeight)
+    except Exception, e:
+        raise pyTerraError(e)
+
+    return resp
+    
+
+def GetAreaFromTileId(id, displayPixWidth=200, displayPixHeight=200):
+    """Returns the bounding box for a TileMeta.Id"""
+
+    t = client.factory.create("TileId")
+    t.X = int(id.X)
+    t.Y = int(id.Y)
+    t.Scene = int(id.Scene)
+    t.Theme = id.Theme
+    t.Scale = id.Scale
+    
+    displayPixHeight = int(displayPixHeight)
+    displayPixWidth = int(displayPixHeight)
+    
+    if (t.Scale not in GetScales()):
+        raise pyTerraError("Scale '%s' is not a valid scale" % t.Scale)
+
+    try:
+        int(id.Theme)
+    except ValueError:
+        try:
+            t.Theme = lookup[id.Theme.upper()]
+        except KeyError:
+            raise pyTerraError("Theme %s not found" % id.Theme)
+
+    try:
+        resp = client.service.GetAreaFromTileId(t, displayPixWidth, displayPixHeight)
+    except Exception, e:
+        raise pyTerraError(e)
+
+    return resp
+            
+
 
 def GetAreaFromRect(upperLeft, lowerRight, theme, scale):
     """Returns the tiles for the bounding box defined by upperLeft and lowerRight"""
-    sa = ns + 'GetAreaFromRect'
-    server = SOAPProxy(url, namespace=ns, soapaction=sa, config=SOAPConfig(debug=debug))
-    try:
-        for i in range(retries):
-            try:
-                resp = server.GetAreaFromRect(upperLeft = upperLeft,
-                                              lowerRight = lowerRight,
-                                              theme = theme,
-                                              scale = scale)
-                if resp:
-                    raise KeyError
-            except socket.error , e:
-                if e[0] == 10060:
-                    continue
-            except SOAPpy.Types.faultType, e:
-                # reraise the KeyError as our indication of being done
-                if isinstance(e, KeyError):
-                    raise KeyError
-                raise pyTerraError(e[1])
-    except KeyError: #KeyError was raised, which means we're good to go
-        pass
 
-    if isinstance (resp, Types.faultType):
-        raise pyTerraError(resp.faultstring)
-    else:
-        return resp
+    ul = client.factory.create("LonLatPt")
+    ul.Lat = float(upperLeft.Lat)
+    ul.Lon = float(upperLeft.Lon)
+
+    lr = client.factory.create("LonLatPt")
+    lr.Lat = float(lowerRight.Lat)
+    lr.Lon = float(lowerRight.Lon)
+
+    try:
+        int(theme)
+    except ValueError:
+        try:
+            theme = lookup[theme.upper()]
+        except KeyError:
+            raise pyTerraError("Theme %s not found" % theme)
+
+    if (scale not in GetScales()):
+        raise pyTerraError("scale %s not available" % scale)
+    try:
+        resp = client.service.GetAreaFromRect(ul, lr, theme, scale)
+    except Exception, e:
+        raise pyTerraError(e)
+
+    return resp
+
     
 def GetTileMetaFromTileId(id):
     """Gets the metadata for a TileMeta.Id"""
-    sa = ns + 'GetTileMetaFromTileId'
-    server = SOAPProxy(url, namespace=ns, soapaction=sa, config=SOAPConfig(debug=debug))
-    try:
-        for i in range(retries):
-            try:
-                resp = server.GetTileMetaFromTileId(id = id)
-                if resp:
-                    raise KeyError
-            except socket.error , e:
-                if e[0] == 10060:
-                    continue
-            except SOAPpy.Types.faultType, e:
-                # reraise the KeyError as our indication of being done
-                if isinstance(e, KeyError):
-                    raise KeyError
-                raise pyTerraError(e[1])
-    except KeyError: #KeyError was raised, which means we're good to go
-        pass
+
+    t = client.factory.create("TileId")
+    t.X = int(id.X)
+    t.Y = int(id.Y)
+    t.Scene = int(id.Scene)
+    t.Theme = id.Theme
+    t.Scale = id.Scale
     
-    if isinstance (resp, Types.faultType):
-        raise pyTerraError(resp.faultstring)
-    else:
-        return resp
+    if (t.Scale not in GetScales()):
+        raise pyTerraError("Scale '%s' is not a valid scale" % t.Scale)
+
+    try:
+        int(id.Theme)
+    except ValueError:
+        try:
+            t.Theme = lookup[id.Theme.upper()]
+        except KeyError:
+            raise pyTerraError("Theme %s not found" % id.Theme)
+
+    try:
+        resp = client.service.GetTileMetaFromTileId(t)
+    except Exception, e:
+        raise pyTerraError(e)
+
+    return resp    
+
 
 def GetTileMetaFromLonLatPt(point, theme, scale):
     """Gets the TileMeta for a point (lat/lon)"""
-    sa = ns + 'GetTileMetaFromLonLatPt'
-    server = SOAPProxy(url, namespace=ns, soapaction=sa, config=SOAPConfig(debug=debug, namespaceStyle=2001))
+
+    p = client.factory.create("LonLatPt")
+    p.Lat = float(point.Lat)
+    p.Lon = float(point.Lon)
+
     try:
-        for i in range(retries):
-            try:
-                resp = server.GetTileMetaFromLonLatPt(point = point,
-                                              theme = theme,
-                                              scale = scale)
-                if resp:
-                    raise KeyError
-            except socket.error , e:
-                if e[0] == 10060:
-                    continue
-            except SOAPpy.Types.faultType, e:
-                # reraise the KeyError as our indication of being done
-                if isinstance(e, KeyError):
-                    raise KeyError
-                raise pyTerraError(e[1])
-    except KeyError: #KeyError was raised, which means we're good to go
-        pass
-    if isinstance (resp, Types.faultType):
-        raise pyTerraError(resp.faultstring)
-    else:
-        return resp
+        int(theme)
+    except ValueError:
+        try:
+            theme = lookup[theme.upper()]
+        except KeyError:
+            raise pyTerraError("Theme %s not found" % theme)
+
+    try:
+        resp = client.service.GetTileMetaFromLonLatPt(p, theme, scale)
+    except Exception, e:
+        raise pyTerraError(e)
+
+    return resp
+
 
 def GetTile(id):
     """Returns the tile image data"""
-    sa = ns + 'GetTile'
-    server = SOAPProxy(url, namespace=ns, soapaction=sa, config=SOAPConfig(debug=debug))
-    try:
-        for i in range(retries):
-            try:
-                resp = server.GetTile(id = id)
-                if resp:
-                    raise KeyError
-            except socket.error , e:
-                if e[0] == 10060:
-                    continue
-            except SOAPpy.Types.faultType, e:
-                # reraise the KeyError as our indication of being done
-                if isinstance(e, KeyError):
-                    raise KeyError
-                raise pyTerraError(e[1])
-    except KeyError: #KeyError was raised, which means we're good to go
-        pass
-    if isinstance (resp, Types.faultType):
-        raise pyTerraError(resp.faultstring)
-    else:
-        return resp
 
+    t = client.factory.create("TileId")
+    t.X = int(id.X)
+    t.Y = int(id.Y)
+    t.Scene = int(id.Scene)
+    t.Theme = id.Theme
+    t.Scale = id.Scale
+    
+    if (t.Scale not in GetScales()):
+        raise pyTerraError("Scale '%s' is not a valid scale" % t.Scale)
+
+    try:
+        int(id.Theme)
+    except ValueError:
+        try:
+            t.Theme = lookup[id.Theme.upper()]
+        except KeyError:
+            raise pyTerraError("Theme %s not found" % id.Theme)
+            
+    try:
+        resp = client.service.GetTile(t)
+    except Exception, e:
+        raise pyTerraError(e)
+
+    return resp
 def ConvertLonLatPtToNearestPlace(point):
     """Converts a lat/lon point into a place"""
-    sa = ns + 'ConvertLonLatPtToNearestPlace'
-    server = SOAPProxy(url, namespace=ns, soapaction=sa, config=SOAPConfig(debug=debug))
+
+    p = client.factory.create("LonLatPt")
+    p.Lat = float(point.Lat)
+    p.Lon = float(point.Lon)
+
     try:
-        for i in range(retries):
-            try:
-                resp = server.ConvertLonLatPtToNearestPlace(point = point)
-                if resp:
-                    raise KeyError
-            except socket.error , e:
-                if e[0] == 10060:
-                    continue
-            except SOAPpy.Types.faultType, e:
-                # reraise the KeyError as our indication of being done
-                if isinstance(e, KeyError):
-                    raise KeyError
-                raise pyTerraError(e[1])
-    except KeyError: #KeyError was raised, which means we're good to go
-        pass
-    
-    if isinstance (resp, Types.faultType):
-        raise pyTerraError(resp.faultstring)
-    else:
-        return resp
+        resp = client.service.ConvertLonLatPtToNearestPlace(p)
+    except Exception, e:
+        raise pyTerraError(e)
+
+    return resp
+
 
 def ConvertUtmPtToLonLatPt(utm):
     """Converts a UTM point into lat/lon"""
-    sa = ns + 'ConvertUtmPtToLonLatPt'
-    server = SOAPProxy(url, namespace=ns, soapaction=sa, config=SOAPConfig(debug=debug))
+
+    p = client.factory.create("UtmPt")
+    p.X = float(utm.X)
+    p.Y = float(utm.Y)
+    p.Zone = int(utm.Zone)
+
     try:
-        for i in range(retries):
-            try:
-                resp = server.ConvertUtmPtToLonLatPt(utm = utm)
-                if resp:
-                    raise KeyError
-            except socket.error , e:
-                if e[0] == 10060:
-                    continue
-            except SOAPpy.Types.faultType, e:
-                # reraise the KeyError as our indication of being done
-                if isinstance(e, KeyError):
-                    raise KeyError
-                raise pyTerraError(e[1])
-    except KeyError: #KeyError was raised, which means we're good to go
-        pass
-    if isinstance (resp, Types.faultType):
-        raise pyTerraError(resp.faultstring)
-    else:
-        return resp
+        resp = client.service.ConvertUtmPtToLonLatPt(p)
+    except Exception, e:
+        raise pyTerraError(e)
+
+    return resp
+
 
 def ConvertLonLatPtToUtmPt(point):
     """Converts a lat/lon point into UTM"""
-    sa = ns + 'ConvertLonLatPtToUtmPt'
-    server = SOAPProxy(url, namespace=ns, soapaction=sa, config=SOAPConfig(debug=debug))
-    try:
-        for i in range(retries):
-            try:
-                resp = server.ConvertLonLatPtToUtmPt(point = point)
-                if resp:
-                    raise KeyError
-            except socket.error , e:
-                if e[0] == 10060:
-                    continue
-            except SOAPpy.Types.faultType, e:
-                # reraise the KeyError as our indication of being done
-                if isinstance(e, KeyError):
-                    raise KeyError
-                raise pyTerraError(e[1])
-    except KeyError: #KeyError was raised, which means we're good to go
-        pass
 
-    if isinstance (resp, Types.faultType):
-        raise pyTerraError(resp.faultstring)
-    else:
-        return resp
+    p = client.factory.create("LonLatPt")
+    p.Lat = float(point.Lat)
+    p.Lon = float(point.Lon)
+
+    try:
+        resp = client.service.ConvertLonLatPtToUtmPt(p)
+    except Exception, e:
+        raise pyTerraError(e)
+
+    return resp
+
 
 def ConvertPlaceToLonLatPt(place):
     """Converts a place struct into a lat/lon point"""
-    sa = ns + 'ConvertPlaceToLonLatPt'
-    server = SOAPProxy(url, namespace=ns, soapaction=sa, config=SOAPConfig(debug=debug))
+    p = client.factory.create("Place")
+    p.City = place.City
+    p.State = place.State
+    p.Country = place.Country
+    
     try:
-        for i in range(retries):
-            try:
-                resp = server.ConvertPlaceToLonLatPt(place = place)
-                if resp:
-                    raise KeyError
-            except socket.error , e:
-                if e[0] == 10060:
-                    continue
-            except SOAPpy.Types.faultType, e:
-                # reraise the KeyError as our indication of being done
-                if isinstance(e, KeyError):
-                    raise KeyError
-                raise pyTerraError(e[1])
-    except KeyError: #KeyError was raised, which means we're good to go
-        pass
+        resp = client.service.ConvertPlaceToLonLatPt(p)
+    except Exception, e:
+        raise pyTerraError(e)
 
-    if isinstance (resp, Types.faultType):
-        raise pyTerraError(resp.faultstring)
-    else:
-        return resp
+    return resp
 
 def GetTheme(theme):
     """Returns theme information about a theme (Photo, Topo, or Relief)"""
-    sa = ns + 'GetTheme'
-    server = SOAPProxy(url, namespace=ns, soapaction=sa, config=SOAPConfig(debug=debug))
-    try:
-        for i in range(retries):
-            try:
-                resp = server.GetTheme(theme)
-                if resp:
-                    raise KeyError
-            except socket.error , e:
-                if e[0] == 10060:
-                    continue
-            except SOAPpy.Types.faultType, e:
-                # reraise the KeyError as our indication of being done
-                if isinstance(e, KeyError):
-                    raise KeyError
-                raise pyTerraError(e[1])
-    except KeyError: #KeyError was raised, which means we're good to go
-        pass
 
-    if isinstance (resp, Types.faultType):
-        raise pyTerraError(resp.faultstring)
-    else:
-        return resp
+    try:
+        int(theme)
+    except ValueError:
+        try:
+            theme = lookup[theme.upper()]
+        except KeyError:
+            raise pyTerraError("Theme %s not found" % theme)
+
+    try:
+        resp = client.service.GetTheme(theme=theme)
+    except Exception, e:
+        raise pyTerraError(e)
+
+    return resp
+
+
+def CountPlacesInRect(upperLeft, lowerRight, ptype):
+    """Counts the number of places inside the bounding box with the specified ptype"""
+
+    ul = client.factory.create("LonLatPt")
+    ul.Lat = float(upperLeft.Lat)
+    ul.Lon = float(upperLeft.Lon)
+
+    lr = client.factory.create("LonLatPt")
+    lr.Lat = float(lowerRight.Lat)
+    lr.Lon = float(lowerRight.Lon)
+
+    if (ptype not in GetPlaceTypes()):
+        raise pyTerraError("type %s not available" % ptype)    
+
+    try:
+        resp = client.service.CountPlacesInRect(ul, lr, ptype)
+    except Exception, e:
+        raise pyTerraError(e)
+
+    return resp
+
 
 def GetLatLonMetrics(point):
     """Don't know why this is there or what this does"""
-    sa = ns + 'GetLatLonMetrics'
-    server = SOAPProxy(url, namespace=ns, soapaction=sa, config=SOAPConfig(debug=debug,namespaceStyle=2001))
-    try:
-        for i in range(retries):
-            try:
-                resp = server.GetLatLonMetrics(point = point)
-                if resp:
-                    raise KeyError
-            except socket.error , e:
-                if e[0] == 10060:
-                    continue
-            except SOAPpy.Types.faultType, e:
-                # reraise the KeyError as our indication of being done
-                if isinstance(e, KeyError):
-                    raise KeyError
-                raise pyTerraError(e[1])
-    except KeyError: #KeyError was raised, which means we're good to go
-        pass
 
-    if isinstance (resp, Types.faultType):
-        raise pyTerraError(resp.faultstring)
-    else:
-        return resp
+    p = client.factory.create("LonLatPt")
+    p.Lat = float(point.Lat)
+    p.Lon = float(point.Lon)
+
+    try:
+        resp = client.service.GetLatLonMetrics(p)
+    except Exception, e:
+        raise pyTerraError(e)
+
+    return resp
+
+class Object:
+    pass
     
-def CountPlacesInRect(upperLeft, lowerRight, ptype):
-    """Counts the number of places inside the bounding box with the specified ptype"""
-    sa = ns + 'CountPlacesInRect'
-    server = SOAPProxy(url, namespace=ns, soapaction=sa, config=SOAPConfig(debug=debug))
-    try:
-        for i in range(retries):
-            try:
-                resp = server.CountPlacesInRect(upperLeft = upperLeft,
-                                              lowerRight = lowerRight,
-                                              ptype = ptype)
-                if resp:
-                    raise KeyError
-            except socket.error , e:
-                if e[0] == 10060:
-                    continue
-            except SOAPpy.Types.faultType, e:
-                # reraise the KeyError as our indication of being done
-                if isinstance(e, KeyError):
-                    raise KeyError
-                raise pyTerraError(e[1])
-    except KeyError: #KeyError was raised, which means we're good to go
-        pass
-
-    if isinstance (resp, Types.faultType):
-        raise pyTerraError(resp.faultstring)
-    else:
-        return resp
-
+    
 if __name__ == '__main__':
     
     import unittest
@@ -551,232 +452,260 @@ if __name__ == '__main__':
     imagePresence='true'
     MaxItems='10'
     placeName='Ames'
-    theme = "Photo"
-    scale = "Scale1mm"
+    theme = 1
+    scale = "Scale4m"
     ptype = 'CityTown'
-
+    
     displayPixWidth = 200
     displayPixHeight = 200
-
-    place = Types.structType(name=(ns,'ns1'))
+    
+    place = Object()
     place.City = 'Ames'
     place.State = 'Iowa'
     place.Country = 'United States'
-
-    pt = Types.structType(name=(ns,'ns1'))
+    
+    pt = Object()
     pt.Lon = -93.000
     
     pt.Lat = 43.000
     center = pt
 
-    upperLeft = Types.structType(name=(ns,'ns1'))
+    upperLeft = Object()
     upperLeft.Lon = -93.000
     upperLeft.Lat = 43.000
     
-    lowerRight = Types.structType(name=(ns,'ns1'))
+    lowerRight = Object()
     lowerRight.Lon = -92.8999
     lowerRight.Lat = 42.8999
-    # 
+    
     class PyTerraTest(unittest.TestCase):
-        # def testGetAreaFromPtassert(self):
-        #     """GetAreaFromPt traps bad inputs"""
-        #     self.assertRaises(pyTerraError,
-        #                       GetAreaFromPt,
-        #                       center, theme, 'Scale4', displayPixWidth, displayPixHeight)
-        #     self.assertRaises(pyTerraError,
-        #                       GetAreaFromPt,
-        #                       center, 'Photos', scale, displayPixWidth, displayPixHeight)
-        # def testGetAreaFromPtequals(self):
-        #     """GetAreaFromPt returns correct results"""
-        #     resp = GetAreaFromPt(center, theme, scale, displayPixWidth, displayPixHeight)
-        #     id = resp.NorthWest.TileMeta.Id
-        #     expected_x = '624'
-        #     expected_y = '5951'
-        #     expected_date = '1994-04-23'
-        #     self.assertEqual(id.Y, expected_y)
-        #     self.assertEqual(id.X, expected_x)
-        #     self.assertEqual(resp.NorthWest.TileMeta.Capture[:10], expected_date)
-        # def testGetPlaceListassert(self):
-        #     """GetPlaceList traps bad inputs"""
-        #     self.assertRaises(pyTerraError,
-        #                       GetPlaceList,
-        #                       placeName, 'aabbcc', imagePresence)
-        #     self.assertRaises(pyTerraError,
-        #                       GetPlaceList,
-        #                       placeName, MaxItems, 'falsse')
-        # def testGetPlaceListequals(self):
-        #     """GetPlaceList returns Ames, Iowa as first result"""
-        #     resp = GetPlaceList(placeName, MaxItems, imagePresence)
-        #     ames = resp.PlaceFacts[0]
-        #     self.assertEqual(ames.Place.State,"Iowa")
-        #     self.assertEqual(ames.Place.City,"Ames")
-        # def testConvertLonLatPtToNearestPlaceassert(self):
-        #     """ConvertLonLatPtToNearestPlace traps bad inputs"""
-        #     pt.Lat = 'abc'
-        #     self.assertRaises(pyTerraError,
-        #                       ConvertLonLatPtToNearestPlace,
-        #                       pt)
-        # def testConvertLonLatPtToNearestPlaceequals(self):
-        #     """ConvertLonLatPtToNearestPlace returns 7 km SW of Rockford, Iowa"""
-        #     pt.Lon = -93.000
-        #     pt.Lat = 43.000
-        #     resp = ConvertLonLatPtToNearestPlace(pt)
-        #     expected_resp = '7 km SW of Rockford, Iowa, United States'
-        #     self.assertEqual(resp, expected_resp)
-        # def testConvertLonLatPtToUtmPtequals(self):
-        #     """ConvertLonLatPtToUtmPt returns correct results"""
-        #     pt.Lon = -93.000
-        #     pt.Lat = 43.000
-        #     resp = ConvertLonLatPtToUtmPt(pt)
-        #     expected_x = '500000'
-        #     expected_y = '4760814.7962907264'
-        #     expected_zone = '15'
-        #     self.assertEqual(resp.X, expected_x)
-        #     self.assertEqual(resp.Y, expected_y)
-        #     self.assertEqual(resp.Zone, expected_zone)
-        # def testConvertLonLatPtToUtmPtassert(self):
-        #     """ConvertLonLatPtToUtmPt traps bad inputs"""
-        #     pt.Lat = 'abc'
-        #     self.assertRaises(pyTerraError,
-        #                       ConvertLonLatPtToUtmPt,
-        #                       pt)       
-        # def testGetTileMetaFromTileIdassert(self):
-        #     """GetTileMetaFromTileId traps bad inputs"""
-        #     id = Types.structType()
-        #     id.X = 'abc'
-        #     id.Y = '5951'
-        #     id.scene = '15'
-        #     id.theme = theme
-        #     id.scale = scale
-        #     self.assertRaises(pyTerraError,
-        #                       GetTileMetaFromTileId,
-        #                       id)
-        # def testGetTileMetaFromTileIdtequals(self):
-        #     """GetTileMetaFromTileId returns correct results"""
-        #     resp = GetAreaFromPt(center, theme, scale, displayPixWidth, displayPixHeight)
-        #     id = resp.NorthWest.TileMeta.Id
-        #     resp = GetTileMetaFromTileId(id)
-        #     self.assertEqual(resp.NorthWest.Lat, '43.0070686340332')
-        #     self.assertEqual(resp.NorthWest.Lon, '-93.009819030761719')
-        # def testGetAreaFromTileIdassert(self):
-        #     """GetAreaFromTileId traps bad inputs"""
-        #     id = Types.structType(name=(ns,'ns1'))
-        #     id.X = 'abc'
-        #     id.Y = '5951'
-        #     id.scene = '15'
-        #     id.theme = theme
-        #     id.scale = scale
-        #     self.assertRaises(pyTerraError,
-        #                       GetAreaFromTileId,
-        #                       id)
-        # def testGetAreaFromTileIdequals(self):
-        #     """GetAreaFromTileId returns correct results"""
-        #     id = Types.structType(name=(ns,'ns1'))
-        #     id.X = '624'
-        #     id.Y = '5951'
-        #     id.Scene = '15'
-        #     id.Theme = theme
-        #     id.Scale = scale
-        #     resp = GetAreaFromTileId(id)
-        #     self.assertEqual(resp.NorthWest.TileMeta.NorthWest.Lat, '43.014274597167969')
-        #     self.assertEqual(resp.NorthWest.TileMeta.NorthWest.Lon, '-93.019638061523438')
-        # def testGetTileassert(self):
-        #     """GetTile traps bad inputs"""
-        #     id = Types.structType(name=(ns,'ns1'))
-        #     id.X = 'abc'
-        #     id.Y = '5951'
-        #     id.Scene = '15'
-        #     id.Theme = theme
-        #     id.Scale = scale
-        #     self.assertRaises(pyTerraError,
-        #                       GetTile,
-        #                       id)
-        # def testGetTileequals(self):
-        #     """GetTile returns correct results"""
-        #     id = Types.structType(name=(ns,'ns1'))
-        #     id.X = '624'
-        #     id.Y = '5951'
-        #     id.Scene = '15'
-        #     id.Theme = theme
-        #     id.Scale = scale
-        #     resp = GetTile(id)
-        #     self.assertEqual(len(resp), 6942)
-        # def testConvertUtmPtToLonLatPtassert(self):
-        #     """ConvertUtmPtToLonLatPt traps bad inputs"""
-        #     utm = Types.structType(name=(ns,'ns1'))
-        #     utm.X = 'abc'
-        #     utm.Y = '4760814.7962907264'
-        #     utm.Zone = '15'
-        #     self.assertRaises(pyTerraError,
-        #                       ConvertUtmPtToLonLatPt,
-        #                       utm)
-        # def testConvertUtmPtToLonLatPtequals(self):
-        #     """ConvertUtmPtToLonLatPt returns correct results"""
-        #     utm = Types.structType(name=(ns,'ns1'))
-        #     utm.X = '500000'
-        #     utm.Y = '4760814.7962907264'
-        #     utm.Zone = '15'
-        #     resp = ConvertUtmPtToLonLatPt(utm)
-        #     self.assertEqual(resp.Lat, '42.999999999999943')
-        #     self.assertEqual(resp.Lon, '-92.9999999999999')
-        # def testGetAreaFromRectassert(self):
-        #   """GetAreaFromRect traps bad inputs"""
-        #   self.assertRaises(pyTerraError,
-        #                     GetAreaFromRect,
-        #                     upperLeft,
-        #                     lowerRight,
-        #                     theme,
-        #                     'scale4')
-        # def testGetAreaFromRectequals(self):
-        #     """GetAreaFromRect returns correct results"""
-        #     resp = GetAreaFromRect(upperLeft,
-        #                            lowerRight,
-        #                            theme,
-        #                            scale)
-        #     self.assertEqual(resp.NorthWest.TileMeta.NorthWest.Lat, '43.007072448730469')
-        #     self.assertEqual(resp.NorthWest.TileMeta.NorthWest.Lon, '-93')
+        def testGetAreaFromPtassert(self):
+            """GetAreaFromPt traps bad inputs"""
+            self.assertRaises(pyTerraError,
+                              GetAreaFromPt,
+                              center, theme, 'Scale4', displayPixWidth, displayPixHeight)
+            self.assertRaises(pyTerraError,
+                              GetAreaFromPt,
+                              center, 'Photos', scale, displayPixWidth, displayPixHeight)
+        def testGetAreaFromPtequals(self):
+            """GetAreaFromPt returns correct results"""
+            resp = GetAreaFromPt(center, theme, scale, displayPixWidth, displayPixHeight)
+            id = resp.NorthWest.TileMeta.Id
+            expected_x = 624
+            expected_y = 5951
+            expected_date = '1994-04-23'
+            self.assertEqual(id.Y, expected_y)
+            self.assertEqual(id.X, expected_x)
+            self.assertEqual(resp.NorthWest.TileMeta.Capture, datetime.datetime(1994,4,23,0,0))
+
+        def testGetPlaceListequals(self):
+            """GetPlaceList returns Ames, Iowa as first result"""
+            resp = GetPlaceList(placeName, MaxItems, imagePresence)
+            ames = resp.PlaceFacts[0]
+            self.assertEqual(ames.Place.State,"Iowa")
+            self.assertEqual(ames.Place.City,"Ames")
+        def testConvertLonLatPtToNearestPlaceassert(self):
+            """ConvertLonLatPtToNearestPlace traps bad inputs"""
+            pt.Lat = 'abc'
+            self.assertRaises(ValueError,
+                              ConvertLonLatPtToNearestPlace,
+                              pt)
+        def testConvertLonLatPtToNearestPlaceequals(self):
+            """ConvertLonLatPtToNearestPlace returns 7 km SW of Rockford, Iowa"""
+            pt.Lon = -93.000
+            pt.Lat = 43.000
+            resp = ConvertLonLatPtToNearestPlace(pt)
+            expected_resp = '7 km SW of Rockford, Iowa, United States'
+            self.assertEqual(resp, expected_resp)
+        def testConvertLonLatPtToUtmPtequals(self):
+            """ConvertLonLatPtToUtmPt returns correct results"""
+            pt.Lon = -93.000
+            pt.Lat = 43.000
+            resp = ConvertLonLatPtToUtmPt(pt)
+            expected_x = '500000.0000000000'
+            expected_y = '4760814.7962907264'
+            expected_zone = '15'
+            self.assertEqual('%.10f' % resp.X, expected_x)
+            self.assertEqual('%.10f' % resp.Y, expected_y)
+            self.assertEqual('%d' % resp.Zone, expected_zone)
+        def testConvertLonLatPtToUtmPtassert(self):
+            """ConvertLonLatPtToUtmPt traps bad inputs"""
+            pt.Lat = 'abc'
+            self.assertRaises(ValueError,
+                              ConvertLonLatPtToUtmPt,
+                              pt)       
+        def testGetTileMetaFromTileIdassert(self):
+            """GetTileMetaFromTileId traps bad inputs"""
+            id = Object()
+            id.X = 'abc'
+            id.Y = '5951'
+            id.scene = '15'
+            id.theme = theme
+            id.scale = scale
+            self.assertRaises(ValueError,
+                              GetTileMetaFromTileId,
+                              id)
+        def testGetTileMetaFromTileIdtequals(self):
+            """GetTileMetaFromTileId returns correct results"""
+            resp = GetAreaFromPt(center, theme, scale, displayPixWidth, displayPixHeight)
+            id = resp.NorthWest.TileMeta.Id
+            resp = GetTileMetaFromTileId(id)
+            self.assertEqual('%.10f' % resp.NorthWest.Lat, '43.0070686340')
+            self.assertEqual('%.10f' % resp.NorthWest.Lon, '-93.0098190308')
+        def testGetAreaFromTileIdassert(self):
+            """GetAreaFromTileId traps bad inputs"""
+            id = Object()
+            id.X = 'abc'
+            id.Y = '5951'
+            id.scene = '15'
+            id.theme = theme
+            id.scale = scale
+            self.assertRaises(ValueError,
+                              GetAreaFromTileId,
+                              id)
+        def testGetAreaFromTileIdequals(self):
+            """GetAreaFromTileId returns correct results"""
+            id = Object()
+            id.X = '624'
+            id.Y = '5951'
+            id.Scene = '15'
+            id.Theme = theme
+            id.Scale = scale
+            resp = GetAreaFromTileId(id)
+            self.assertEqual('%.10f' % resp.NorthWest.TileMeta.NorthWest.Lat, '43.0142745972')
+            self.assertEqual('%.10f' % resp.NorthWest.TileMeta.NorthWest.Lon, '-93.0196380615')
+        def testGetTileassert(self):
+            """GetTile traps bad inputs"""
+            id = Object()
+            id.X = 'abc'
+            id.Y = '5951'
+            id.Scene = '15'
+            id.Theme = theme
+            id.Scale = scale
+            self.assertRaises(ValueError,
+                              GetTile,
+                              id)
+        def testGetTileequals(self):
+            """GetTile returns correct results"""
+            id = Object()
+            id.X = '624'
+            id.Y = '5951'
+            id.Scene = '15'
+            id.Theme = theme
+            id.Scale = scale
+            resp = GetTile(id)
+            self.assertEqual(len(resp), 6852)
+
+        def testConvertUtmPtToLonLatPtassert(self):
+            """ConvertUtmPtToLonLatPt traps bad inputs"""
+            utm = Object()
+            utm.X = 'abc'
+            utm.Y = '4760814.7962907264'
+            utm.Zone = '15'
+            self.assertRaises(ValueError,
+                              ConvertUtmPtToLonLatPt,
+                              utm)
+        def testConvertUtmPtToLonLatPtequals(self):
+            """ConvertUtmPtToLonLatPt returns correct results"""
+            utm = Object()
+            utm.X = '500000'
+            utm.Y = '4760814.7962907264'
+            utm.Zone = '15'
+            resp = ConvertUtmPtToLonLatPt(utm)
+            self.assertEqual('%.10f' % resp.Lat, '43.0000000000')
+            self.assertEqual('%.10f' % resp.Lon, '-93.0000000000')
+        def testGetAreaFromRectassert(self):
+          """GetAreaFromRect traps bad inputs"""
+          self.assertRaises(pyTerraError,
+                            GetAreaFromRect,
+                            upperLeft,
+                            lowerRight,
+                            theme,
+                            'scale4')
+        def testGetAreaFromRectequals(self):
+            """GetAreaFromRect returns correct results"""
+            resp = GetAreaFromRect(upperLeft,
+                                   lowerRight,
+                                   theme,
+                                   scale)
+            self.assertEqual('%.10f' % resp.NorthWest.TileMeta.NorthWest.Lat, '43.0070724487')
+            self.assertEqual('%.10f' % resp.NorthWest.TileMeta.NorthWest.Lon, '-93.0000000000')
+
+
         def testGetLatLonMetricsassert(self):
             """GetLatLonMetrics traps bad inputs"""
-            # upperLeft.Lat = 'abc'
+            upperLeft.Lat = 'abc'
+            self.assertRaises(ValueError,
+                              GetLatLonMetrics,
+                              upperLeft)
+        def testGetLatLonMetricsassert(self):
+            """GetLatLonMetrics returns correct results"""
             resp = GetLatLonMetrics(upperLeft)
-            # self.assertRaises(pyTerraError,
-            #                   GetLatLonMetrics,
-            #                   upperLeft)
-        # def testGetPlaceListInRectassert(self):
-        #   """GetPlaceListInRect traps bad inputs"""
-        #   self.assertRaises(pyTerraError,
-        #                     GetPlaceListInRect,
-        #                     upperLeft,
-        #                     lowerRight,
-        #                     'abc',
-        #                     MaxItems)
-        # def testGetPlaceFactsassert(self):
-        #   """GetPlaceFacts traps bad inputs"""
-        #   place.City = 43.200
-        #   self.assertRaises(pyTerraError,
-        #                     GetPlaceFacts,
-        #                     place)
-        # def testGetPlaceFactsequals(self):
-        #     """GetPlaceFacts returns correct results"""
-        #     place = Types.structType(name=(ns,'ns1'))
-        #     place.City = 'Ames'
-        #     place.State = 'Iowa'
-        #     place.Country = 'United States'
-        #     resp = GetPlaceFacts(place)
-        #     self.assertEqual(resp.Center.Lat, '42.029998779296875')
-        #     self.assertEqual(resp.Center.Lon, '-93.610000610351562')
-        # def testGetTileMetaFromLonLatPtassert(self):
-        #   """GetTileMetaFromLonLatPt traps bad inputs"""
-        #   self.assertRaises(pyTerraError,
-        #                     GetTileMetaFromLonLatPt,
-        #                     pt,
-        #                     'Photos',
-        #                     scale)
+        
+        def testCountPlacesInRect(self):
+            """Counting places in rect"""
+            lowerRight = Object()
+            lowerRight.Lon = -92.80
+            lowerRight.Lat = 42.60
+            resp = CountPlacesInRect(upperLeft, lowerRight, 'CityTown')
+            self.assertEqual(resp, 15)
+        def testGetPlaceListInRectEquals(self):
+          """GetPlaceListInRect traps bad inputs"""
+          lowerRight = Object()
+          lowerRight.Lon = -92.80
+          lowerRight.Lat = 42.60
+          resp = GetPlaceListInRect(
+                            upperLeft,
+                            lowerRight,
+                            'CityTown',
+                            MaxItems)
+          self.assertEqual(resp.PlaceFacts[0].Place.City, 'Greene');
+        def testGetPlaceListInRectassert(self):
+          """GetPlaceListInRect traps bad inputs"""
+          self.assertRaises(pyTerraError,
+                            GetPlaceListInRect,
+                            upperLeft,
+                            lowerRight,
+                            'abc',
+                            MaxItems)
+        
+        def testConvertPlaceToLonLatPtsequals(self):
+            """GetPlaceFacts returns correct results"""
+            place = Object()
+            place.City = 'Ames'
+            place.State = 'Iowa'
+            place.Country = 'United States'
+            resp = ConvertPlaceToLonLatPt(place)
+            self.assertEqual('%.10f' % resp.Lat, '42.0299987793')
+            self.assertEqual('%.10f' % resp.Lon, '-93.6100006104')
+        
+        def testGetPlaceFactsassert(self):
+          """GetPlaceFacts traps bad inputs"""
+          place.City = 43.200
+          self.assertRaises(pyTerraError,
+                            GetPlaceFacts,
+                            place)
+        def testGetPlaceFactsequals(self):
+            """GetPlaceFacts returns correct results"""
+            place = Object()
+            place.City = 'Ames'
+            place.State = 'Iowa'
+            place.Country = 'United States'
+            resp = GetPlaceFacts(place)
+            self.assertEqual('%.10f' % resp.Center.Lat, '42.0299987793')
+            self.assertEqual('%.10f' % resp.Center.Lon, '-93.6100006104')
+        def testGetTileMetaFromLonLatPtassert(self):
+          """GetTileMetaFromLonLatPt traps bad inputs"""
+          self.assertRaises(pyTerraError,
+                            GetTileMetaFromLonLatPt,
+                            pt,
+                            'Photos',
+                            scale)
         def testGetTileMetaFromLonLatPtequals(self):
             """GetTileMetaFromLonLatPt returns correct results"""
             
-            # resp = GetTheme(1)
-            # resp = GetTileMetaFromLonLatPt(pt, theme, scale)
-            # self.assertEqual(resp.Center.Lat, '43.003467559814453')
-            # self.assertEqual(resp.Center.Lon, '-92.9950942993164')
+            resp = GetTheme('ortho')
+            resp = GetTileMetaFromLonLatPt(pt, theme, scale)
+            self.assertEqual('%.10f' % resp.Center.Lat, '43.0034675598')
+            self.assertEqual('%.10f' % resp.Center.Lon, '-92.9950942993')
     unittest.main()
