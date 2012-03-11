@@ -28,17 +28,19 @@ classifiers = [
         'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
         'Intended Audience :: Science/Research',
-        'License :: OSI Approved :: Python Software Foundation License',
+        'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
         'Topic :: Scientific/Engineering :: GIS',
         
 ]
 
+readme_text = file('README.rst', 'rb').read()
 
 setup(name=name,
       version=version,
       description=description,
+      long_description = readme_text,
       author=author,
       author_email=author_email,
       url=url,
