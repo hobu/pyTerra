@@ -1,77 +1,8 @@
 """Python API for the Microsoft TerraServer.
 Copyright (c) 2012 Howard Butler hobu@hobu.net
 
-*******************************************************************************
-pyTerra: Python Support for the Microsoft TerraServer
-
-*******************************************************************************
-Version: 0.9
-
-*******************************************************************************
 License:
 See the Python 2.6 License (http://www.python.org/2.6/license.html)
-
-*******************************************************************************
-Description:
-pyTerra is a Python module that allows you to make requests to Microsoft's
-TerraServer (http://terraserver.microsoft.com/).  With it, you can download
-cartographic images for any almost any geographic extent in the US.
-
-The TerraServer has almost complete coverage of the United States for two very
-important cartographic products, topographic maps and digital orthographic
-photos (sometimes called DOQs or DOQQs).  You can find out more about DOQs here
-(http://mapping.usgs.gov/www/ndop/) and more about what topographic maps are
-here  (http://mac.usgs.gov/mac/isb/pubs/booklets/symbols/).
-
-All methods reflect the TerraService API.  See the WSDL file at
-http://terraserver-usa.com/terraservice.asmx for more information about how
-to make the calls.  Every call returns SOAPpy objects (which are very similar
-to regular objects).  You can traverse the heirarchy by taking a response
-and going obj.obj.obj...  
-
-This software requires a hacked version of SOAPpy 0.10.1 because TerraServer
-is very picky about how it receives namespaces.  I couldn't find any other
-way around it other than to hack in what it expected into the SOAPBuilder of
-SOAPpy.  The hacked version of SOAPpy is included in the module.
-
-The TerraServer stores images as a pyramid of tiles.  Each tile is always 200
-pixels square, independent of its actual ground resolution.  Aerial photos are
-available in 1, 2, 4, 8, 16, 32, and 64 m resolutions.  Topographic maps are
-available in all of the above resolutions except 1-meter.
-
-Getting an image for an extent involves three steps: 1. Define a bounding box
-for the area you want to download. A bounding box is a box defined by the upper
-left point and lower left point of the box.  The point can be in geographic
-coordinates (42.9332 deg N x -93.2112 deg W) or projected UTM coordinates
-(437679.183 Easting and 4658340.891 Northing) 2. Make a request to the
-Terraserver that returns all of the tiles that fall within the bounding box 3.
-Make a request to the Terraserver for the image data in each tile and paste it
-into a new PIL image.
-
-*******************************************************************************
-
-Requires:
-Python 2.2 or greater
-
-pyXML 0.8.2 or greater
-(http://sourceforge.net/project/showfiles.php?group_id=6473)
-
-*******************************************************************************
-Future plans:
-This version of pyTerra removes the need for the Microsoft SOAP kit that the
-previous version required.  This means that 0.4 is now a Python-only version
-of the software and should work in Unix environments as well as Windows.  
-
-*******************************************************************************
-
-*******************************************************************************
-Testing:
-A series of unit tests has been written for this version.  To start the tests,
-run pyTerra -v at a command prompt.  The tests check the software to make
-sure that it is returning correct results and errors.  The area that it uses
-to check its information is in Iowa.
-
-*******************************************************************************
 """
 
 import datetime
@@ -87,7 +18,7 @@ logging.basicConfig(level=logging.INFO)
 # logging.getLogger('suds.client').setLevel(logging.DEBUG)
 logging.getLogger('suds.client').setLevel(logging.ERROR)
 
-lookup = {'DOQ':1, 'DRG':2, "ORTHO":1, "TOPO":2}
+themes = {'DOQ':1, 'DRG':2, "ORTHO":1, "TOPO":2}
 
 __author__ = "Howard Butler  hobu@hobu.net"
 __copyright__ ='(c) 2012 Howard Butler'
@@ -172,7 +103,7 @@ def GetAreaFromPt(center, theme, scale, displayPixWidth, displayPixHeight):
         int(theme)
     except ValueError:
         try:
-            theme = lookup[theme.upper()]
+            theme = themes[theme.upper()]
         except KeyError:
             raise pyTerraError("Theme %s not found" % theme)
 
@@ -205,7 +136,7 @@ def GetAreaFromTileId(id, displayPixWidth=200, displayPixHeight=200):
         int(id.Theme)
     except ValueError:
         try:
-            t.Theme = lookup[id.Theme.upper()]
+            t.Theme = themes[id.Theme.upper()]
         except KeyError:
             raise pyTerraError("Theme %s not found" % id.Theme)
 
@@ -219,7 +150,22 @@ def GetAreaFromTileId(id, displayPixWidth=200, displayPixHeight=200):
 
 
 def GetAreaFromRect(upperLeft, lowerRight, theme, scale):
-    """Returns the tiles for the bounding box defined by upperLeft and lowerRight"""
+    """Returns the tiles for the bounding box defined two points, upperLeft and lowerRight.
+    
+    :param upperLeft: an instance with .Lat and .Lon data members 
+        The .Lat and .Lon data members of the instance passed in represent the 
+        WGS84 latitude and longitude, and should be provided as floating point nubmers.
+
+    :param lowerRight: an instance with .Lat and .Lon data members 
+        The .Lat and .Lon data members of the instance passed in represent the 
+        WGS84 latitude and longitude, and should be provided as floating point nubmers.
+
+    :param theme: integer
+        An integer from one of the valid themes in :data:`themes`.
+
+    :param scale: string
+        A valid scale string from :meth:GetScales
+    """
 
     ul = client.factory.create("LonLatPt")
     ul.Lat = float(upperLeft.Lat)
@@ -233,10 +179,9 @@ def GetAreaFromRect(upperLeft, lowerRight, theme, scale):
         int(theme)
     except ValueError:
         try:
-            theme = lookup[theme.upper()]
+            theme = themes[theme.upper()]
         except KeyError:
             raise pyTerraError("Theme %s not found" % theme)
-
     if (scale not in GetScales()):
         raise pyTerraError("scale %s not available" % scale)
     try:
@@ -264,7 +209,7 @@ def GetTileMetaFromTileId(id):
         int(id.Theme)
     except ValueError:
         try:
-            t.Theme = lookup[id.Theme.upper()]
+            t.Theme = themes[id.Theme.upper()]
         except KeyError:
             raise pyTerraError("Theme %s not found" % id.Theme)
 
@@ -287,7 +232,7 @@ def GetTileMetaFromLonLatPt(point, theme, scale):
         int(theme)
     except ValueError:
         try:
-            theme = lookup[theme.upper()]
+            theme = themes[theme.upper()]
         except KeyError:
             raise pyTerraError("Theme %s not found" % theme)
 
@@ -316,7 +261,7 @@ def GetTile(id):
         int(id.Theme)
     except ValueError:
         try:
-            t.Theme = lookup[id.Theme.upper()]
+            t.Theme = themes[id.Theme.upper()]
         except KeyError:
             raise pyTerraError("Theme %s not found" % id.Theme)
             
@@ -393,7 +338,7 @@ def GetTheme(theme):
         int(theme)
     except ValueError:
         try:
-            theme = lookup[theme.upper()]
+            theme = themes[theme.upper()]
         except KeyError:
             raise pyTerraError("Theme %s not found" % theme)
 
