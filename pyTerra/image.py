@@ -1,13 +1,6 @@
-try:
-    import pyTS.pyTerra as pyTerra
-    import pyTS.SOAPpy
-    from pyTS.SOAPpy import Types
-except ImportError:
-    import sys
-    sys.path.append('..')
-    import pyTerra
-    from SOAPpy import Types
-    
+
+import api
+
 from threading import Thread
 import Queue
 import os
@@ -16,7 +9,6 @@ import Image
 import cStringIO
 import base64
 import time
-pyTerra.retries = 6
 #Number of pixels on a side of a tile
 side = 200
 
@@ -40,30 +32,30 @@ class Retriever(Thread):
                 time.sleep(1)
                 tile.imagedata = base64.decodestring(pyTerra.GetTile(tile))
 
-class point(Types.structType):
-    def __init__(self, Lat, Lon):
-        Types.structType.__init__(self, None, (pyTerra.ns,'point'), 1, None)
-       # self._aslist    = []
-       # self._asdict    = {}
-       # self._keyord    = []
-        self._addItem('Lat', float(Lat))
-        self._addItem('Lon', float(Lon))
-
-class utm(Types.structType):
-    def __init__(self, X, Y, Zone):
-        Types.structType.__init__(self, None, (pyTerra.ns,'utm'), 1, None)
-       # self._aslist    = []
-       # self._asdict    = {}
-       # self._keyord    = []
-        self._addItem('X', float(X))
-        self._addItem('Y', float(Y))
-        self._addItem('Zone', int(Zone))
+# class point(Types.structType):
+#     def __init__(self, Lat, Lon):
+#         Types.structType.__init__(self, None, (pyTerra.ns,'point'), 1, None)
+#        # self._aslist    = []
+#        # self._asdict    = {}
+#        # self._keyord    = []
+#         self._addItem('Lat', float(Lat))
+#         self._addItem('Lon', float(Lon))
+# 
+# class utm(Types.structType):
+#     def __init__(self, X, Y, Zone):
+#         Types.structType.__init__(self, None, (pyTerra.ns,'utm'), 1, None)
+#        # self._aslist    = []
+#        # self._asdict    = {}
+#        # self._keyord    = []
+#         self._addItem('X', float(X))
+#         self._addItem('Y', float(Y))
+#         self._addItem('Zone', int(Zone))
         
 class TerraImage(object):
     def __init__(self, upperLeft, lowerRight, Scale, Theme, Zone, cacheDir=None):
-        if not (Theme.upper() <> 'PHOTO' or Theme.upper() <> 'TOPO'):
+        if not (Theme.upper() != 'PHOTO' or Theme.upper() != 'TOPO'):
             raise pyTerra.pyTerraError('Theme must be Photo or Topo, not %s' % Theme)
-        if Scale[:5] <> 'Scale' or Scale[-1:] <> 'm':
+        if Scale[:5] != 'Scale' or Scale[-1:] != 'm':
             raise pyTerra.pyTerraError('Scale must be in the form Scale2m, Scale4m, etc., not %s' % Scale)
         try:
             int(Zone)
@@ -279,34 +271,34 @@ class TerraImage(object):
 
 
     
-if __name__ =='__main__':
-    try:
-        large = sys.argv[1]
-    except:
-        large = 0
-    if large:
-        ul_x = 433714.25
-        ul_y = 4661043.80
-        lr_x = 438603.35
-        lr_y = 4656591.96
-    else:
-    #Baker field
-        ul_x = 436521.25
-        ul_y = 4659253.80
-        lr_x = 437142.35
-        lr_y = 4658582.96
-    thescale = 'Scale1m'
-    thetype = 'Photo'
-    thezone = 15
-    filename = 'test.jpg'
-    
-    p = point(43.003, 93.00)
-    upperLeft = utm(ul_x, ul_y, thezone)
-    lowerRight = utm(lr_x, lr_y, thezone)
-    ti = TerraImage(upperLeft, lowerRight, thescale, thetype, thezone)
-    print ti.number_of_tiles
-
-    ti.write_worldfile('test.jpgw')
-    ti.write('test.jpg')
-    ti.write_worldfile('test.jpgw')
-#    print ti.dates
+# if __name__ =='__main__':
+#     try:
+#         large = sys.argv[1]
+#     except:
+#         large = 0
+#     if large:
+#         ul_x = 433714.25
+#         ul_y = 4661043.80
+#         lr_x = 438603.35
+#         lr_y = 4656591.96
+#     else:
+#     #Baker field
+#         ul_x = 436521.25
+#         ul_y = 4659253.80
+#         lr_x = 437142.35
+#         lr_y = 4658582.96
+#     thescale = 'Scale1m'
+#     thetype = 'Photo'
+#     thezone = 15
+#     filename = 'test.jpg'
+#     
+#     p = point(43.003, 93.00)
+#     upperLeft = utm(ul_x, ul_y, thezone)
+#     lowerRight = utm(lr_x, lr_y, thezone)
+#     ti = TerraImage(upperLeft, lowerRight, thescale, thetype, thezone)
+#     print ti.number_of_tiles
+# 
+#     ti.write_worldfile('test.jpgw')
+#     ti.write('test.jpg')
+#     ti.write_worldfile('test.jpgw')
+# #    print ti.dates

@@ -1,3 +1,13 @@
+import warnings
+
+try:
+    from distribute_setup import use_setuptools
+    use_setuptools()
+except:
+    warnings.warn(
+    "Failed to import distribute_setup, continuing without distribute.", 
+    Warning)
+    
 try:
     from setuptools import setup
     from setuptools import Extension
@@ -11,7 +21,7 @@ version=pyTerra.__version__
 description="Terraserver Module for Python"
 author="Howard Butler"
 author_email="hobu.inc@gmail.com"
-url="http://bitbucket.org/hobu/pyterra/"
+url="http://github.com/hobu/pyterra/"
 
 
 classifiers = [
@@ -33,5 +43,7 @@ setup(name=name,
       author_email=author_email,
       url=url,
       classifiers = classifiers,
-      packages = ['pyTerra.TerraImage','pyTerra.pyTerra','pyTerra']
+      install_requires= ['suds>=0.4','PIL>=1.1.4'],
+      packages = ['pyTerra'],
+      test_suite="tests"
       )
